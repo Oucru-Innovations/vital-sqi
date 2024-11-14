@@ -136,3 +136,148 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+.pytest_cache
+*.py[cod]
+*.pyo
+*.pyd
+
+# C extensions
+*.so
+
+# Notes
+Features.txt
+markdowns/
+visualizations/
+health_analysis_report.html
+report.html
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# PyCharm
+.idea/
+*.iml
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+cov_html/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Sample data
+sample_data/private
+sample_data/analysis
+sample_data/Event_Data
+
+
+# Notebook
+# src/notebooks/
+
+# pytest
+.cache/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pylint
+.pylint.d/
+
+# Environments
+.env
+.env.*
+.envrc
+venv.bak/
+.pip/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+docs/source/_static/_images/
+docs/source/notebooks/docs/_static/_images/*
+
+# Logs and databases
+*.log
+*.sqlite3
+*.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# CI/CD
+# .github/workflows/
+
+# Sphinx documentation
+docs/_build/
+
+# Executive Makefile
+make.bat
+
+# Coverage reports
+.coverage
+coverage.xml
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Other
+*.DS_Store
+*.swp

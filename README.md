@@ -1,11 +1,21 @@
 # Vital_sqi: Signal quality control of physiological signals
 
-[![Build Status](https://travis-ci.com/meta00/vital_sqi.svg?token=CDjcmJqzLe7opuWagsPJ&branch=main)](https://travis-ci.com/meta00/vital_sqi)
+<!-- [![Build Status](https://travis-ci.com/meta00/vital_sqi.svg?token=CDjcmJqzLe7opuWagsPJ&branch=main)](https://travis-ci.com/meta00/vital_sqi)
 [![codecov](https://codecov.io/gh/meta00/vital_sqi/branch/main/graph/badge.svg?token=6RV5BUK340)](https://codecov.io/gh/meta00/vital_sqi)
 [![Documentation Status](https://readthedocs.org/projects/vitalsqi/badge/?version=latest)](https://vitalsqi.readthedocs.io/en/latest/?badge=latest)
 [![PyPI version](https://badge.fury.io/py/vital-sqi.svg)](https://badge.fury.io/py/vital-sqi)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) -->
 
+![GitHub stars](https://img.shields.io/github/stars/Oucru-Innovations/vital-sqi?style=social)
+![Build Status](https://github.com/Oucru-Innovations/vital-sqi/actions/workflows/ci.yml/badge.svg)
+[![Coverage Status](https://coveralls.io/repos/github/Oucru-Innovations/vital-sqi/badge.svg)](https://coveralls.io/github/Oucru-Innovations/vital-sqi)
+<!-- [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) -->
+![GitHub License](https://img.shields.io/github/license/Oucru-Innovations/vital-sqi)
+![Python Versions](https://img.shields.io/badge/python-3.7%2B-blue)
+[![Documentation Status](https://readthedocs.org/projects/vital-sqi/badge/?version=latest)](https://vital-sqi.readthedocs.io/en/latest/?badge=latest)
+<!-- ![PyPI Downloads](https://img.shields.io/pypi/dm/vitalsqi)
+[![PyPI version](https://badge.fury.io/py/vitalsqi.svg)](https://badge.fury.io/py/vitalsqi)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Oucru-Innovations/vital-sqi/blob/main/docs/source/notebooks/synthesize_data.ipynb) -->
 
 # Description
 Vital_sqi is a Python package for signal quality index (SQI) extraction and quality assignment 
