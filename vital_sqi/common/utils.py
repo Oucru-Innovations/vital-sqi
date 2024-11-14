@@ -1,5 +1,5 @@
 import numpy as np
-import os,sys
+import os, sys
 import datetime as dt
 import json
 import pandas as pd
@@ -8,33 +8,28 @@ from vital_sqi.common.rpeak_detection import PeakDetector
 from hrvanalysis import get_nn_intervals
 import dateparser
 
-OPERAND_MAPPING_DICT = {
-    ">": 5,
-    ">=": 4,
-    "=": 3,
-    "<=": 2,
-    "<": 1
-}
+OPERAND_MAPPING_DICT = {">": 5, ">=": 4, "=": 3, "<=": 2, "<": 1}
 
 
 class HiddenPrints:
     def __enter__(self):
         self._original_stdout = sys.stdout
-        sys.stdout = open(os.devnull, 'w')
+        sys.stdout = open(os.devnull, "w")
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.stdout.close()
         sys.stdout = self._original_stdout
 
 
-def get_nn(s,wave_type='ppg',sample_rate=100,rpeak_method=7,
-           remove_ectopic_beat=False):
+def get_nn(
+    s, wave_type="ppg", sample_rate=100, rpeak_method=7, remove_ectopic_beat=False
+):
 
-    if wave_type=='ppg':
-        detector = PeakDetector(wave_type='ppg')
+    if wave_type == "ppg":
+        detector = PeakDetector(wave_type="ppg")
         peak_list, trough_list = detector.ppg_detector(s, detector_type=rpeak_method)
     else:
-        detector = PeakDetector(wave_type='ecg')
+        detector = PeakDetector(wave_type="ecg")
         peak_list, trough_list = detector.ecg_detector(s, detector_type=rpeak_method)
 
     rr_list = np.diff(peak_list) * (1000 / sample_rate)
@@ -60,19 +55,25 @@ def check_valid_signal(x):
 
     """
     if isinstance(x, dict) or isinstance(x, tuple):
-        raise ValueError("Expected array_like input, instead found {"
-                         "0}:".format(type(x)))
+        raise ValueError(
+            "Expected array_like input, instead found {" "0}:".format(type(x))
+        )
     if len(x) == 0:
         raise ValueError("Empty signal")
-    types = [str(type(xi)) for idx,xi in enumerate(x)]
+    types = [str(type(xi)) for idx, xi in enumerate(x)]
     type_unique = np.unique(np.array(types))
-    if len(type_unique) != 1 and (type_unique[0].find("int") != -1 or
-                                  type_unique[0].find("float") != -1):
-        raise ValueError("Invalid signal: Expect numeric array, instead found "
-                         "array with types {0}: ".format(type_unique))
+    if len(type_unique) != 1 and (
+        type_unique[0].find("int") != -1 or type_unique[0].find("float") != -1
+    ):
+        raise ValueError(
+            "Invalid signal: Expect numeric array, instead found "
+            "array with types {0}: ".format(type_unique)
+        )
     if type_unique[0].find("int") == -1 and type_unique[0].find("float") == -1:
-        raise ValueError("Invalid signal: Expect numeric array, instead found "
-                         "array with types {0}: ".format(type_unique))
+        raise ValueError(
+            "Invalid signal: Expect numeric array, instead found "
+            "array with types {0}: ".format(type_unique)
+        )
     return True
 
 
@@ -90,9 +91,11 @@ def calculate_sampling_rate(timestamps):
     if isinstance(timestamps[0], float):
         timestamps_second = timestamps
     elif isinstance(timestamps[0], pd.Timestamp):
-        timestamps_second = timestamps - np.array([timestamps[0]]*len(timestamps))
-    elif isinstance(timestamps[0],np.datetime64):
-        timestamps_second = (timestamps - np.array([timestamps[0]] * len(timestamps))) / np.timedelta64(1, "s")
+        timestamps_second = timestamps - np.array([timestamps[0]] * len(timestamps))
+    elif isinstance(timestamps[0], np.datetime64):
+        timestamps_second = (
+            timestamps - np.array([timestamps[0]] * len(timestamps))
+        ) / np.timedelta64(1, "s")
     else:
         try:
             v_parse_datetime = np.vectorize(parse_datetime)
@@ -104,10 +107,10 @@ def calculate_sampling_rate(timestamps):
             return sampling_rate
     steps = np.diff(timestamps_second)
     min_step = np.min(steps[steps != 0])
-    if not isinstance(min_step,dt.timedelta):
+    if not isinstance(min_step, dt.timedelta):
         min_step = dt.timedelta(seconds=min_step)
     # sampling_rate = round(1 / pd.Timedelta.total_seconds(min_step), 3)
-    sampling_rate = round(1 /min_step.total_seconds(), 3)
+    sampling_rate = round(1 / min_step.total_seconds(), 3)
     return sampling_rate
 
 
@@ -127,8 +130,9 @@ def generate_timestamp(start_datetime, sampling_rate, signal_length):
     -------
     list : list of timestamps with length equal to signal_length.
     """
-    assert np.isreal(sampling_rate), 'Sampling rate is expected to be a int ' \
-                                     'or float.'
+    assert np.isreal(sampling_rate), (
+        "Sampling rate is expected to be a int " "or float."
+    )
     # number_of_seconds = signal_length / sampling_rate
     if start_datetime is None:
         start_datetime = dt.datetime.now()
@@ -139,7 +143,7 @@ def generate_timestamp(start_datetime, sampling_rate, signal_length):
     # else:
     #     timestamps = np.arange(0, signal_length) * step_size + dt.datetime.timestamp(start_datetime)
     timestamps = np.arange(0, signal_length) * step_size + (start_datetime.timestamp())
-    timestamps = np.array(list(map(lambda x: pd.Timestamp(x, unit='s'), timestamps)))
+    timestamps = np.array(list(map(lambda x: pd.Timestamp(x, unit="s"), timestamps)))
     # timestamps = (np.vectorize(lambda x: pd.Timedelta(x, unit='seconds')))\
     #     (np.arange(0, signal_length) * step_size + dt.datetime.timestamp(start_datetime))
     # timestamps = []
@@ -155,7 +159,7 @@ def generate_timestamp(start_datetime, sampling_rate, signal_length):
     return timestamps
 
 
-def parse_datetime(string, type='datetime'):
+def parse_datetime(string, type="datetime"):
     """
     A simple dateparser that detects common  datetime formats
 
@@ -171,32 +175,36 @@ def parse_datetime(string, type='datetime'):
 
     """
     # some common formats.
-    date_formats = ['%Y-%m-%d',
-                    '%d-%m-%Y',
-                    '%d.%m.%Y',
-                    '%Y.%m.%d',
-                    '%d %b %Y',
-                    '%Y/%m/%d',
-                    '%d/%m/%Y']
-    datime_formats = ['%Y-%m-%d %H:%M:%S.%f',
-                      '%d-%m-%Y %H:%M:%S.%f',
-                      '%d.%m.%Y %H:%M:%S.%f',
-                      '%Y.%m.%d %H:%M:%S.%f',
-                      '%d %b %Y %H:%M:%S.%f',
-                      '%Y/%m/%d %H:%M:%S.%f',
-                      '%d/%m/%Y %H:%M:%S.%f',
-                      '%Y-%m-%d %I:%M:%S.%f',
-                      '%d-%m-%Y %I:%M:%S.%f',
-                      '%d.%m.%Y %I:%M:%S.%f',
-                      '%Y.%m.%d %I:%M:%S.%f',
-                      '%d %b %Y %I:%M:%S.%f',
-                      '%Y/%m/%d %I:%M:%S.%f',
-                      '%d/%m/%Y %I:%M:%S.%f']
-    if type == 'date':
+    date_formats = [
+        "%Y-%m-%d",
+        "%d-%m-%Y",
+        "%d.%m.%Y",
+        "%Y.%m.%d",
+        "%d %b %Y",
+        "%Y/%m/%d",
+        "%d/%m/%Y",
+    ]
+    datime_formats = [
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%d-%m-%Y %H:%M:%S.%f",
+        "%d.%m.%Y %H:%M:%S.%f",
+        "%Y.%m.%d %H:%M:%S.%f",
+        "%d %b %Y %H:%M:%S.%f",
+        "%Y/%m/%d %H:%M:%S.%f",
+        "%d/%m/%Y %H:%M:%S.%f",
+        "%Y-%m-%d %I:%M:%S.%f",
+        "%d-%m-%Y %I:%M:%S.%f",
+        "%d.%m.%Y %I:%M:%S.%f",
+        "%Y.%m.%d %I:%M:%S.%f",
+        "%d %b %Y %I:%M:%S.%f",
+        "%Y/%m/%d %I:%M:%S.%f",
+        "%d/%m/%Y %I:%M:%S.%f",
+    ]
+    if type == "date":
         formats = date_formats
-    if type == 'datetime':
+    if type == "datetime":
         formats = datime_formats
-    for i,f in enumerate(formats):
+    for i, f in enumerate(formats):
         try:
             return dt.datetime.strptime(string, f)
         except:
@@ -204,24 +212,23 @@ def parse_datetime(string, type='datetime'):
     try:
         return dateparser.parse(string)
     except:
-        raise ValueError('Datetime string must be of standard Python format '
-                         '(https://docs.python.org/3/library/time.html), '
-                         'e.g., `%d-%m-%Y`, eg. `24-01-2020`')
+        raise ValueError(
+            "Datetime string must be of standard Python format "
+            "(https://docs.python.org/3/library/time.html), "
+            "e.g., `%d-%m-%Y`, eg. `24-01-2020`"
+        )
 
 
 def parse_rule(name, source):
-    assert os.path.isfile(source) is True, 'Source file not found'
+    assert os.path.isfile(source) is True, "Source file not found"
     with open(source) as json_file:
         all = json.load(json_file)
         try:
             sqi = all[name]
         except:
             raise Exception("SQI {0} not found".format(name))
-        rule_def, boundaries, label_list = update_rule(sqi['def'],
-                                                       is_update=False)
-    return rule_def, \
-           boundaries, \
-           label_list
+        rule_def, boundaries, label_list = update_rule(sqi["def"], is_update=False)
+    return rule_def, boundaries, label_list
 
 
 def update_rule(rule_def, threshold_list=[], is_update=True):
@@ -229,16 +236,16 @@ def update_rule(rule_def, threshold_list=[], is_update=True):
         all_rules = []
     else:
         all_rules = list(np.copy(rule_def))
-    for i,threshold in enumerate(threshold_list):
+    for i, threshold in enumerate(threshold_list):
         all_rules.append(threshold)
     df = sort_rule(all_rules)
-    df = decompose_operand(df.to_dict('records'))
+    df = decompose_operand(df.to_dict("records"))
     boundaries = np.sort(df["value"].unique())
     inteveral_label_list = get_inteveral_label_list(df, boundaries)
     value_label_list = get_value_label_list(df, boundaries, inteveral_label_list)
 
     label_list = []
-    for i,va in enumerate(np.arange(len(value_label_list))):
+    for i, va in enumerate(np.arange(len(value_label_list))):
         label_list.append(inteveral_label_list[i])
         label_list.append(value_label_list[i])
     label_list.append(inteveral_label_list[-1])
@@ -248,11 +255,13 @@ def update_rule(rule_def, threshold_list=[], is_update=True):
 def sort_rule(rule_def):
     df = pd.DataFrame(rule_def)
     df["value"] = pd.to_numeric(df["value"])
-    df['operand_order'] = df['op'].map(OPERAND_MAPPING_DICT)
-    df.sort_values(by=['value', 'operand_order'],
-                   inplace=True,
-                   ascending=[True, True],
-                   ignore_index=True)
+    df["operand_order"] = df["op"].map(OPERAND_MAPPING_DICT)
+    df.sort_values(
+        by=["value", "operand_order"],
+        inplace=True,
+        ascending=[True, True],
+        ignore_index=True,
+    )
 
     return df
 
@@ -260,22 +269,25 @@ def sort_rule(rule_def):
 def decompose_operand(rule_dict):
     df = pd.DataFrame(rule_dict)
     df["value"] = pd.to_numeric(df["value"])
-    df['operand_order'] = df['op'].map(OPERAND_MAPPING_DICT)
+    df["operand_order"] = df["op"].map(OPERAND_MAPPING_DICT)
 
-    single_operand = df[(df["operand_order"] == 5)
-                        | (df["operand_order"] == 3)
-                        | (df["operand_order"] == 1)].to_dict('records')
+    single_operand = df[
+        (df["operand_order"] == 5)
+        | (df["operand_order"] == 3)
+        | (df["operand_order"] == 1)
+    ].to_dict("records")
 
     df_gte_operand = df[(df["operand_order"] == 4)]
-    gte_g_operand = df_gte_operand.replace(">=", ">").to_dict('records')
-    gte_e_operand = df_gte_operand.replace(">=", "=").to_dict('records')
+    gte_g_operand = df_gte_operand.replace(">=", ">").to_dict("records")
+    gte_e_operand = df_gte_operand.replace(">=", "=").to_dict("records")
 
     df_lte_operand = df[(df["operand_order"] == 2)]
-    lte_l_operand = df_lte_operand.replace("<=", "<").to_dict('records')
-    lte_e_operand = df_lte_operand.replace("<=", "=").to_dict('records')
+    lte_l_operand = df_lte_operand.replace("<=", "<").to_dict("records")
+    lte_e_operand = df_lte_operand.replace("<=", "=").to_dict("records")
 
-    all_operand = single_operand + gte_g_operand + gte_e_operand + \
-                  lte_l_operand + lte_e_operand
+    all_operand = (
+        single_operand + gte_g_operand + gte_e_operand + lte_l_operand + lte_e_operand
+    )
 
     df_all_operand = sort_rule(all_operand)
 
@@ -283,7 +295,9 @@ def decompose_operand(rule_dict):
 
 
 def check_unique_pair(pair):
-    assert len(pair) <= 1, "Duplicated decision at '" + str(pair["value"]) + " " + pair["op"] + "'"
+    assert len(pair) <= 1, (
+        "Duplicated decision at '" + str(pair["value"]) + " " + pair["op"] + "'"
+    )
     return True
 
 
@@ -303,27 +317,33 @@ def check_conflict(decision_lt, decision_gt):
         return label_lt
     # Check conflict
     if not label_lt == label_gt:
-        raise ValueError("Rules raise a conflict at x " + decision_lt.iloc[0]["op"] + " " +
-                         str(decision_lt.iloc[0]["value"]) + " is " + decision_lt.iloc[0]["label"]
-                         + ", but x " + decision_gt.iloc[0]["op"] + " " +
-                         str(decision_gt.iloc[0]["value"]) + " is " + decision_gt.iloc[0]["label"])
+        raise ValueError(
+            "Rules raise a conflict at x "
+            + decision_lt.iloc[0]["op"]
+            + " "
+            + str(decision_lt.iloc[0]["value"])
+            + " is "
+            + decision_lt.iloc[0]["label"]
+            + ", but x "
+            + decision_gt.iloc[0]["op"]
+            + " "
+            + str(decision_gt.iloc[0]["value"])
+            + " is "
+            + decision_gt.iloc[0]["label"]
+        )
     return label_gt
 
 
 def get_decision(df, boundaries, idx):
     start_value = boundaries[idx]
     end_value = boundaries[idx + 1]
-    decision_lt = \
-        df[(df["value"] == end_value) &
-           (df["op"] == "<")]
+    decision_lt = df[(df["value"] == end_value) & (df["op"] == "<")]
     check_unique_pair(decision_lt)
-    decision_gt = \
-        df[(df["value"] == start_value) &
-           (df["op"] == ">")]
+    decision_gt = df[(df["value"] == start_value) & (df["op"] == ">")]
     check_unique_pair(decision_gt)
 
     decision = check_conflict(decision_lt, decision_gt)
-    while (decision == None and idx <= (len(df) - 1)):
+    while decision == None and idx <= (len(df) - 1):
         decision = get_decision(df, boundaries, idx + 1)
     return decision
 
@@ -331,23 +351,24 @@ def get_decision(df, boundaries, idx):
 def get_inteveral_label_list(df, boundaries):
     inteveral_label_list = np.array([None] * (len(boundaries) + 1))
 
-    assert df["op"].iloc[0] == "<", \
-        "The rule is missing a decision from -inf to " + str(df["value"].iloc[0])
+    assert (
+        df["op"].iloc[0] == "<"
+    ), "The rule is missing a decision from -inf to " + str(df["value"].iloc[0])
     inteveral_label_list[0] = df.iloc[0]["label"]
-    for idx,val in enumerate(np.arange((len(boundaries) - 1))):
+    for idx, val in enumerate(np.arange((len(boundaries) - 1))):
         decision = get_decision(df, boundaries, idx)
         inteveral_label_list[idx + 1] = decision
-    assert df["op"].iloc[-1] == ">", \
+    assert df["op"].iloc[-1] == ">", (
         "The rule is missing a decision from " + str(df["value"].iloc[-1]) + " to inf"
+    )
     inteveral_label_list[-1] = df.iloc[-1]["label"]
     return inteveral_label_list
 
 
 def get_value_label_list(df, boundaries, interval_label_list):
     value_label_list = np.array([None] * (len(boundaries)))
-    for idx,val in enumerate(np.arange(len(boundaries))):
-        decision = df[(df["value"] == boundaries[idx]) &
-                      (df["op"] == "=")]
+    for idx, val in enumerate(np.arange(len(boundaries))):
+        decision = df[(df["value"] == boundaries[idx]) & (df["op"] == "=")]
         check_unique_pair(decision)
         if len(decision) == 0:
             value_label_list[idx] = interval_label_list[idx + 1]
@@ -356,7 +377,7 @@ def get_value_label_list(df, boundaries, interval_label_list):
     return value_label_list
 
 
-def cut_segment(df,milestone):
+def cut_segment(df, milestone):
     """
     Spit Dataframe into segments, base on the pair of start and end indices.
 
@@ -371,16 +392,17 @@ def cut_segment(df,milestone):
     -------
     The list of split segments.
     """
-    assert isinstance(milestone, pd.DataFrame), \
-        "Please convert the milestone as dataframe " \
-        "with 'start' and 'end' columns. " \
-        ">>> from vital_sqi.common.utils import format_milestone" \
+    assert isinstance(milestone, pd.DataFrame), (
+        "Please convert the milestone as dataframe "
+        "with 'start' and 'end' columns. "
+        ">>> from vital_sqi.common.utils import format_milestone"
         ">>> milestones = format_milestone(start_milestone,end_milestone)"
-    start_milestone = np.array(milestone.iloc[:,0])
+    )
+    start_milestone = np.array(milestone.iloc[:, 0])
     end_milestone = np.array(milestone.iloc[:, 1])
     processed_df = []
     for idx, (start, end) in enumerate(zip(start_milestone, end_milestone)):
-        processed_df.append(df.iloc[int(start):int(end)])
+        processed_df.append(df.iloc[int(start) : int(end)])
     return processed_df
 
 
@@ -399,21 +421,24 @@ def format_milestone(start_milestone, end_milestone):
     a dataframe of two columns.
     The first column indicates the start indices, the second indicates the end indices
     """
-    assert len(start_milestone) == end_milestone, "The list of  start indices and end indices must equal size"
+    assert (
+        len(start_milestone) == end_milestone
+    ), "The list of  start indices and end indices must equal size"
     df_milestones = pd.DataFrame()
-    df_milestones['start'] = start_milestone
-    df_milestones['end'] = end_milestone
+    df_milestones["start"] = start_milestone
+    df_milestones["end"] = end_milestone
     return df_milestones
 
 
 def check_signal_format(s):
-    assert isinstance(s, pd.DataFrame), 'Expected a pd.DataFrame.'
-    assert len(s.columns) == 2, 'Expect a datafram of only two columns.'
-    assert isinstance(s.iloc[0, 0], pd.Timestamp), \
-        'Expected type of the first column to be pd.Timestamp.'
-    assert is_number(s.iloc[0, 1]), \
-        'Expected type of the second column to be float'
+    assert isinstance(s, pd.DataFrame), "Expected a pd.DataFrame."
+    assert len(s.columns) == 2, "Expect a datafram of only two columns."
+    assert isinstance(
+        s.iloc[0, 0], pd.Timestamp
+    ), "Expected type of the first column to be pd.Timestamp."
+    assert is_number(s.iloc[0, 1]), "Expected type of the second column to be float"
     return True
+
 
 def create_rule_def(sqi_name, upper_bound=0, lower_bound=1):
     json_rule_dict = {}
@@ -426,6 +451,6 @@ def create_rule_def(sqi_name, upper_bound=0, lower_bound=1):
             {"op": "<", "value": str(upper_bound), "label": "accept"},
         ],
         "desc": "",
-        "ref": ""
+        "ref": "",
     }
     return json_rule_dict

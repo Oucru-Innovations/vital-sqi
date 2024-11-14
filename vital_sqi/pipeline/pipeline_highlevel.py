@@ -1,20 +1,35 @@
 from vital_sqi.preprocess.segment_split import split_segment, save_segment
-from vital_sqi.pipeline.pipeline_functions import extract_sqi,classify_segments,\
-    get_reject_segments,get_decision_segments
+from vital_sqi.pipeline.pipeline_functions import (
+    extract_sqi,
+    classify_segments,
+    get_reject_segments,
+    get_decision_segments,
+)
 from vital_sqi.data.signal_io import PPG_reader, ECG_reader
 import os
 import pandas as pd
 import warnings
+
 warnings.filterwarnings("ignore")
 
 
-def get_ppg_sqis(file_name, signal_idx, timestamp_idx, sqi_dict_filename,
-                 info_idx=[],
-                 timestamp_unit='ms', sampling_rate=None, start_datetime=None,
-                 split_type=0, duration=30, overlapping=None, peak_detector=7):
+def get_ppg_sqis(
+    file_name,
+    signal_idx,
+    timestamp_idx,
+    sqi_dict_filename,
+    info_idx=[],
+    timestamp_unit="ms",
+    sampling_rate=None,
+    start_datetime=None,
+    split_type=0,
+    duration=30,
+    overlapping=None,
+    peak_detector=7,
+):
     """This function takes input signal, computes a number of SQIs, and outputs
     a table (row - signal segments, column SQI values.
-    
+
     Step 1: Read data to make SignalSQI object. (filename, other ppg
     parameter for PPG_reader()
     - PPG_reader > signalSQI obj
@@ -29,13 +44,13 @@ def get_ppg_sqis(file_name, signal_idx, timestamp_idx, sqi_dict_filename,
     Parameters
     ----------
     file_name :
-        
+
     sqi_dict :
-        
+
     signal_idx :
-        
+
     timestamp_idx :
-        
+
     info_idx :
          (Default value = [])
     timestamp_unit :
@@ -56,36 +71,53 @@ def get_ppg_sqis(file_name, signal_idx, timestamp_idx, sqi_dict_filename,
     Returns
     -------
 
-    
-    """
-    signal_obj = PPG_reader(file_name=file_name,
-                     signal_idx=signal_idx,
-                     timestamp_idx=timestamp_idx,
-                     info_idx=info_idx,
-                     timestamp_unit=timestamp_unit,
-                     sampling_rate=sampling_rate,
-                     start_datetime=start_datetime,)
 
-    segments, milestones = split_segment(signal_obj.signals.iloc[:, 0:2],
-                                    sampling_rate=signal_obj.sampling_rate,
-                                    split_type=split_type, duration=duration,
-                                    overlapping=overlapping,
-                                    peak_detector=peak_detector,
-                                    wave_type='ppg')
+    """
+    signal_obj = PPG_reader(
+        file_name=file_name,
+        signal_idx=signal_idx,
+        timestamp_idx=timestamp_idx,
+        info_idx=info_idx,
+        timestamp_unit=timestamp_unit,
+        sampling_rate=sampling_rate,
+        start_datetime=start_datetime,
+    )
+
+    segments, milestones = split_segment(
+        signal_obj.signals.iloc[:, 0:2],
+        sampling_rate=signal_obj.sampling_rate,
+        split_type=split_type,
+        duration=duration,
+        overlapping=overlapping,
+        peak_detector=peak_detector,
+        wave_type="ppg",
+    )
     signal_obj.signals = pd.DataFrame()
-    sqi_lst = [
-        extract_sqi(segments, milestones, sqi_dict_filename, wave_type='ppg')]
+    sqi_lst = [extract_sqi(segments, milestones, sqi_dict_filename, wave_type="ppg")]
     signal_obj.sqis = sqi_lst
     return segments, signal_obj
 
 
-def get_qualified_ppg(file_name, sqi_dict_filename, signal_idx, timestamp_idx,
-                      rule_dict_filename, ruleset_order,
-                      predefined_reject=False, info_idx=[],
-                      timestamp_unit='ms', sampling_rate=None,
-                      start_datetime=None, split_type=0, duration=30,
-                      overlapping=None, peak_detector=7, segment_name=None,
-                      save_image=False, output_dir=None):
+def get_qualified_ppg(
+    file_name,
+    sqi_dict_filename,
+    signal_idx,
+    timestamp_idx,
+    rule_dict_filename,
+    ruleset_order,
+    predefined_reject=False,
+    info_idx=[],
+    timestamp_unit="ms",
+    sampling_rate=None,
+    start_datetime=None,
+    split_type=0,
+    duration=30,
+    overlapping=None,
+    peak_detector=7,
+    segment_name=None,
+    save_image=False,
+    output_dir=None,
+):
     """Step 1: Read data to make SignalSQI object. (filename, other ppg
     parameter for PPG_reader()
     - PPG_reader > signalSQI obj
@@ -97,7 +129,7 @@ def get_qualified_ppg(file_name, sqi_dict_filename, signal_idx, timestamp_idx,
         - run function calls
         - append results into df > attribute sqis > signalSQI obj: signals,
         sqis, segments.
-    
+
     - classify > signalSQI ojb with attribute sqis with decision column
         - make_ruleset: update signalSQI with attribute rules, ruleset.
         - execute (sqi) >> update sqis decision column >>> signalSQI.
@@ -109,17 +141,17 @@ def get_qualified_ppg(file_name, sqi_dict_filename, signal_idx, timestamp_idx,
     Parameters
     ----------
     file_name :
-        
+
     sqi_dict_filename :
-        
+
     signal_idx :
-        
+
     timestamp_idx :
-        
+
     rule_dict_filename :
-        
+
     ruleset_order :
-        
+
     predefined_reject :
          (Default value = False)
     info_idx :
@@ -151,60 +183,84 @@ def get_qualified_ppg(file_name, sqi_dict_filename, signal_idx, timestamp_idx,
     """
     if output_dir is None:
         output_dir = os.getcwd()
-    assert(os.path.exists(output_dir)) is True
-    segments, signal_obj = get_ppg_sqis(file_name, signal_idx,
-                                        timestamp_idx, sqi_dict_filename,
-                                        info_idx,
-                                        timestamp_unit, sampling_rate,
-                                        start_datetime, split_type, duration,
-                                        overlapping, peak_detector)
-    signal_obj.ruleset, signal_obj.sqis = classify_segments(signal_obj.sqis,
-                                                            rule_dict_filename,
-                                                            ruleset_order)
+    assert (os.path.exists(output_dir)) is True
+    segments, signal_obj = get_ppg_sqis(
+        file_name,
+        signal_idx,
+        timestamp_idx,
+        sqi_dict_filename,
+        info_idx,
+        timestamp_unit,
+        sampling_rate,
+        start_datetime,
+        split_type,
+        duration,
+        overlapping,
+        peak_detector,
+    )
+    signal_obj.ruleset, signal_obj.sqis = classify_segments(
+        signal_obj.sqis, rule_dict_filename, ruleset_order
+    )
     if predefined_reject is True:
-        milestones = signal_obj.sqis[0].iloc['start', 'end']
-        reject_decision = get_reject_segments(segments, wave_type='ppg',
-                                              milestones=milestones,
-                                              info=signal_obj.info)
+        milestones = signal_obj.sqis[0].iloc["start", "end"]
+        reject_decision = get_reject_segments(
+            segments, wave_type="ppg", milestones=milestones, info=signal_obj.info
+        )
     else:
-        reject_decision = ['accept']*len(signal_obj.sqis[0])
-    a_segments, r_segments = get_decision_segments(segments,
-                                        signal_obj.sqis[0]['decision'],
-                                        reject_decision)
+        reject_decision = ["accept"] * len(signal_obj.sqis[0])
+    a_segments, r_segments = get_decision_segments(
+        segments, signal_obj.sqis[0]["decision"], reject_decision
+    )
     if save_image:
-        os.makedirs(os.path.join(output_dir, 'accept', 'img'), exist_ok=True)
-        os.makedirs(os.path.join(output_dir, 'reject', 'img'), exist_ok=True)
+        os.makedirs(os.path.join(output_dir, "accept", "img"), exist_ok=True)
+        os.makedirs(os.path.join(output_dir, "reject", "img"), exist_ok=True)
     else:
-        os.makedirs(os.path.join(output_dir, 'accept'), exist_ok=True)
-        os.makedirs(os.path.join(output_dir, 'reject'), exist_ok=True)
-    save_segment(a_segments, segment_name=segment_name,
-                 save_file_folder=os.path.join(output_dir, 'accept'),
-                 save_image=save_image,
-                 save_img_folder=os.path.join(output_dir, 'accept', 'img'))
-    save_segment(r_segments, segment_name=segment_name,
-                 save_file_folder=os.path.join(output_dir, 'reject'),
-                 save_image=save_image,
-                 save_img_folder=os.path.join(output_dir, 'reject', 'img'))
+        os.makedirs(os.path.join(output_dir, "accept"), exist_ok=True)
+        os.makedirs(os.path.join(output_dir, "reject"), exist_ok=True)
+    save_segment(
+        a_segments,
+        segment_name=segment_name,
+        save_file_folder=os.path.join(output_dir, "accept"),
+        save_image=save_image,
+        save_img_folder=os.path.join(output_dir, "accept", "img"),
+    )
+    save_segment(
+        r_segments,
+        segment_name=segment_name,
+        save_file_folder=os.path.join(output_dir, "reject"),
+        save_image=save_image,
+        save_img_folder=os.path.join(output_dir, "reject", "img"),
+    )
     return signal_obj
 
 
-def get_ecg_sqis(file_name, sqi_dict_filename, file_type, channel_num=None,
-                 channel_name=None, sampling_rate=None, start_datetime=None,
-                 split_type=0, duration=30, overlapping=None, peak_detector=7):
+def get_ecg_sqis(
+    file_name,
+    sqi_dict_filename,
+    file_type,
+    channel_num=None,
+    channel_name=None,
+    sampling_rate=None,
+    start_datetime=None,
+    split_type=0,
+    duration=30,
+    overlapping=None,
+    peak_detector=7,
+):
     """multiple channels ecgs: signals  = df multiple columns
     sqis[channel 1 - df, chanel 2 - df]
     segments [channel 1 - series, channel 2 - series]
-    
+
     return signalSQI obj
 
     Parameters
     ----------
     file_name :
-        
+
     sqi_dict_filename :
-        
+
     file_type :
-        
+
     channel_num :
          (Default value = None)
     channel_name :
@@ -225,25 +281,30 @@ def get_ecg_sqis(file_name, sqi_dict_filename, file_type, channel_num=None,
     Returns
     -------
 
-    
+
     """
-    signal_obj = ECG_reader(file_name=file_name, file_type=file_type,
-                            channel_num=channel_num,
-                            channel_name=channel_name,
-                            sampling_rate=sampling_rate,
-                            start_datetime=start_datetime)
+    signal_obj = ECG_reader(
+        file_name=file_name,
+        file_type=file_type,
+        channel_num=channel_num,
+        channel_name=channel_name,
+        sampling_rate=sampling_rate,
+        start_datetime=start_datetime,
+    )
 
     segments_lst = []
     milestones_lst = []
     for i in range(1, len(signal_obj.signals.columns)):
         signals = signal_obj.signals.iloc[:, [0, i]]
-        segments, milestones = split_segment(signals, split_type=split_type,
-                                             sampling_rate=
-                                             signal_obj.sampling_rate,
-                                             duration=duration,
-                                             overlapping=overlapping,
-                                             peak_detector=peak_detector,
-                                             wave_type='ecg')
+        segments, milestones = split_segment(
+            signals,
+            split_type=split_type,
+            sampling_rate=signal_obj.sampling_rate,
+            duration=duration,
+            overlapping=overlapping,
+            peak_detector=peak_detector,
+            wave_type="ecg",
+        )
         segments_lst.append(segments)
         milestones_lst.append(milestones)
     signal_obj.signals = pd.DataFrame()
@@ -253,13 +314,25 @@ def get_ecg_sqis(file_name, sqi_dict_filename, file_type, channel_num=None,
     return segments_lst, signal_obj
 
 
-def get_qualified_ecg(file_name, file_type, sqi_dict_filename,
-                      rule_dict_filename, ruleset_order,
-                      channel_num=None, channel_name=None,
-                      predefined_reject=False,
-                      sampling_rate=None, start_datetime=None, split_type=0,
-                      duration=30, overlapping=None, peak_detector=7,
-                      segment_name=None, save_image=False, output_dir=None):
+def get_qualified_ecg(
+    file_name,
+    file_type,
+    sqi_dict_filename,
+    rule_dict_filename,
+    ruleset_order,
+    channel_num=None,
+    channel_name=None,
+    predefined_reject=False,
+    sampling_rate=None,
+    start_datetime=None,
+    split_type=0,
+    duration=30,
+    overlapping=None,
+    peak_detector=7,
+    segment_name=None,
+    save_image=False,
+    output_dir=None,
+):
     """Extract intended SQI
 
     Build ruleset
@@ -270,15 +343,15 @@ def get_qualified_ecg(file_name, file_type, sqi_dict_filename,
     Parameters
     ----------
     file_name :
-        
+
     file_type :
-        
+
     sqi_dict_filename :
-        
+
     ruleset_order :
-        
+
     rule_dict_filename :
-        
+
     channel_num :
          (Default value = None)
     channel_name :
@@ -307,51 +380,60 @@ def get_qualified_ecg(file_name, file_type, sqi_dict_filename,
     Returns
     -------
 
-    
+
     """
     if output_dir is None:
         output_dir = os.getcwd()
-    assert(os.path.exists(output_dir)) is True
-    segment_lst, signal_obj = get_ecg_sqis(file_name, sqi_dict_filename, file_type,
-                                           channel_num, channel_name,
-                                           sampling_rate, start_datetime,
-                                           split_type, duration, overlapping,
-                                           peak_detector)
+    assert (os.path.exists(output_dir)) is True
+    segment_lst, signal_obj = get_ecg_sqis(
+        file_name,
+        sqi_dict_filename,
+        file_type,
+        channel_num,
+        channel_name,
+        sampling_rate,
+        start_datetime,
+        split_type,
+        duration,
+        overlapping,
+        peak_detector,
+    )
     sqi_lst = []
     for i in range(0, len(segment_lst)):
-        signal_obj.ruleset, sqis = classify_segments(signal_obj.sqis,
-                                                     rule_dict_filename,
-                                                     ruleset_order)
+        signal_obj.ruleset, sqis = classify_segments(
+            signal_obj.sqis, rule_dict_filename, ruleset_order
+        )
         if predefined_reject is True:
-            reject_decision = get_reject_segments(segment_lst[i],
-                                                  wave_type='ecg')
+            reject_decision = get_reject_segments(segment_lst[i], wave_type="ecg")
         else:
             reject_decision = []
-        a_segments, r_segments = get_decision_segments(segment_lst[i],
-                                                sqis[i].loc[:, 'decision'],
-                                                reject_decision)
+        a_segments, r_segments = get_decision_segments(
+            segment_lst[i], sqis[i].loc[:, "decision"], reject_decision
+        )
         if save_image:
-            os.makedirs(os.path.join(output_dir, str(i), 'accept', 'img'),
-                        exist_ok=True)
-            os.makedirs(os.path.join(output_dir, str(i), 'reject', 'img'),
-                        exist_ok=True)
+            os.makedirs(
+                os.path.join(output_dir, str(i), "accept", "img"), exist_ok=True
+            )
+            os.makedirs(
+                os.path.join(output_dir, str(i), "reject", "img"), exist_ok=True
+            )
         else:
-            os.makedirs(os.path.join(output_dir, str(i), 'accept'),
-                        exist_ok=True)
-            os.makedirs(os.path.join(output_dir, str(i), 'reject'),
-                        exist_ok=True)
-        save_segment(a_segments, segment_name=segment_name,
-                     save_file_folder=os.path.join(output_dir, str(i),
-                                                   'accept'),
-                     save_image=save_image,
-                     save_img_folder=os.path.join(output_dir, str(i),
-                                                  'accept', 'img'))
-        save_segment(r_segments, segment_name=segment_name,
-                     save_file_folder=os.path.join(output_dir, str(i),
-                                                   'reject'),
-                     save_image=save_image,
-                     save_img_folder=os.path.join(output_dir, str(i),
-                                                  'reject', 'img'))
+            os.makedirs(os.path.join(output_dir, str(i), "accept"), exist_ok=True)
+            os.makedirs(os.path.join(output_dir, str(i), "reject"), exist_ok=True)
+        save_segment(
+            a_segments,
+            segment_name=segment_name,
+            save_file_folder=os.path.join(output_dir, str(i), "accept"),
+            save_image=save_image,
+            save_img_folder=os.path.join(output_dir, str(i), "accept", "img"),
+        )
+        save_segment(
+            r_segments,
+            segment_name=segment_name,
+            save_file_folder=os.path.join(output_dir, str(i), "reject"),
+            save_image=save_image,
+            save_img_folder=os.path.join(output_dir, str(i), "reject", "img"),
+        )
     signal_obj.sqis = sqi_lst
     return signal_obj
 

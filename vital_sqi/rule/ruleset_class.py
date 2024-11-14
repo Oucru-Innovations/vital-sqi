@@ -2,6 +2,7 @@
 Class RuleSet contains rules of SQIs and their splitting orders, used to
 build a decision flow/tree.
 """
+
 from vital_sqi.rule.rule_class import Rule
 from pyflowchart import *
 import pandas as pd
@@ -14,28 +15,28 @@ class RuleSet:
         self.rules = rules
 
     def __setattr__(self, name, value):
-        if name == 'rules':
+        if name == "rules":
             if not isinstance(value, dict):
-                raise AttributeError('Rule set must be of dict type.')
+                raise AttributeError("Rule set must be of dict type.")
             order = list(value.keys())
             for i in order:
                 if not isinstance(i, int):
-                    raise ValueError('Order must be of type int')
+                    raise ValueError("Order must be of type int")
             if sorted(order) != list(range(min(order), max(order) + 1)):
-                raise ValueError('Order must contain consecutive numbers')
+                raise ValueError("Order must contain consecutive numbers")
             if sorted(order)[0] != 1:
-                raise ValueError('Order must start with 1.')
+                raise ValueError("Order must start with 1.")
             rs = list(value.values())
             for i in rs:
                 if not isinstance(i, Rule):
-                    raise ValueError('Rules must be of class Rule')
+                    raise ValueError("Rules must be of class Rule")
         super().__setattr__(name, value)
 
     def export_rules(self):
         """ """
         rules = self.rules
-        st = StartNode('')
-        e = EndNode('')
+        st = StartNode("")
+        e = EndNode("")
         ops = []
         conds = []
         for key, value in rules.items():
@@ -47,7 +48,7 @@ class RuleSet:
             ops[i].connect(conds[i])
             conds[i].connect_no(e)
             if i < len(ops) - 1:
-                conds[i].connect_yes(ops[i+1])
+                conds[i].connect_yes(ops[i + 1])
         conds[-1].connect_yes(e)
         fc = Flowchart(st)
         return fc.flowchart()
@@ -58,31 +59,35 @@ class RuleSet:
         Parameters
         ----------
         value_df :
-            
+
 
         Returns
         -------
 
         """
-        assert isinstance(value_df, pd.DataFrame), \
-            'Expected data frame, found {0}'.format(type(value_df))
-        assert len(value_df) == 1, 'Expected data frame of 1 row but got {0}' \
-                                   ' instead'.format(len(value_df))
+        assert isinstance(
+            value_df, pd.DataFrame
+        ), "Expected data frame, found {0}".format(type(value_df))
+        assert (
+            len(value_df) == 1
+        ), "Expected data frame of 1 row but got {0}" " instead".format(len(value_df))
         rules = self.rules
         rules = rules.items()
         rules = sorted(rules)
-        decision = 'accept'
+        decision = "accept"
         for r in rules:
             rule = r[1]
             try:
                 value = value_df.iloc[0][rule.name]
             except:
-                raise KeyError('SQI {0} not found in input data frame'.format(
-                        rule.name))
+                raise KeyError(
+                    "SQI {0} not found in input data frame".format(rule.name)
+                )
             decision = rule.apply_rule(value)
-            if decision == 'reject':
+            if decision == "reject":
                 break
         return decision
+
 
 # r1 = Rule("sqi1")
 # r2 = Rule("sqi2")

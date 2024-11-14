@@ -5,9 +5,9 @@ import pycwt as wavelet
 from statsmodels.tsa.ar_model import AutoReg
 
 mother_wave_dict = {
-    'gaussian': wavelet.DOG(),
-    'paul': wavelet.Paul(),
-    'mexican_hat': wavelet.MexicanHat()
+    "gaussian": wavelet.DOG(),
+    "paul": wavelet.Paul(),
+    "mexican_hat": wavelet.MexicanHat(),
 }
 
 
@@ -38,13 +38,14 @@ def calculate_power(freq, pow, fmin, fmax):
         pow = np.mean(pow, axis=1)
 
     band = pow[(freq >= fmin and freq < fmax)]
-    band_power = np.sum(band)/(2*np.power(len(pow), 2))
+    band_power = np.sum(band) / (2 * np.power(len(pow), 2))
 
     return band_power
 
 
-def get_interpolated_nn(ts_rr, bpm_list, sampling_frequency,
-                          interpolation_method="linear"):
+def get_interpolated_nn(
+    ts_rr, bpm_list, sampling_frequency, interpolation_method="linear"
+):
     """
     Method to interpolate the outlier hr data
 
@@ -69,8 +70,7 @@ def get_interpolated_nn(ts_rr, bpm_list, sampling_frequency,
     last = ts_rr[-1]
     # interpolate the data
     # ---------- Interpolation of signal ---------- #
-    interpolator = interpolate.interp1d(ts_rr, bpm_list,
-                                        kind=interpolation_method)
+    interpolator = interpolate.interp1d(ts_rr, bpm_list, kind=interpolation_method)
     # create timestamp for the interpolate rr
     time_offset = 1 / sampling_frequency
     ts_interpolate = np.arange(0, last - first, time_offset)
@@ -103,10 +103,13 @@ def get_time_and_bpm(rr_intervals):
     return ts_rr, bpm_list
 
 
-def calculate_psd(rr_intervals, method='welch',
-                  hr_sampling_frequency=4,
-                  power_type='density',
-                  max_lag=3):
+def calculate_psd(
+    rr_intervals,
+    method="welch",
+    hr_sampling_frequency=4,
+    power_type="density",
+    max_lag=3,
+):
     """
     Returns the frequency and spectral power from the rr intervals.
     This method is used to compute HRV frequency domain features
@@ -141,37 +144,39 @@ def calculate_psd(rr_intervals, method='welch',
     """
     ts_rr, bpm_list = get_time_and_bpm(rr_intervals)
 
-    if method == 'welch':
-        nni_interpolation = get_interpolated_nn(ts_rr,
-                                                  bpm_list,
-                                                  hr_sampling_frequency)
+    if method == "welch":
+        nni_interpolation = get_interpolated_nn(ts_rr, bpm_list, hr_sampling_frequency)
         # ---------- Remove DC Component ---------- #
         nni_normalized = nni_interpolation - np.mean(nni_interpolation)
 
         #  --------- Compute Power Spectral Density  --------- #
-        freq, psd = signal.welch(x=nni_normalized,
-                                 fs=hr_sampling_frequency,
-                                 window='hann',
-                                 nfft=4096)
+        freq, psd = signal.welch(
+            x=nni_normalized, fs=hr_sampling_frequency, window="hann", nfft=4096
+        )
 
-    elif method == 'lomb':
+    elif method == "lomb":
         freq = np.linspace(0, hr_sampling_frequency, 2**8)
         a_frequencies = np.asarray(2 * np.pi / freq)
-        psd = signal.lombscargle(ts_rr, rr_intervals, a_frequencies,
-                                 normalize=True)
+        psd = signal.lombscargle(ts_rr, rr_intervals, a_frequencies, normalize=True)
 
-    elif method == 'ar':
-        freq, psd_ = signal.periodogram(rr_intervals, hr_sampling_frequency,
-                                        window='boxcar', nfft=None,
-                                        detrend='constant',
-                                        return_onesided=True,
-                                        scaling=power_type, axis=- 1)
+    elif method == "ar":
+        freq, psd_ = signal.periodogram(
+            rr_intervals,
+            hr_sampling_frequency,
+            window="boxcar",
+            nfft=None,
+            detrend="constant",
+            return_onesided=True,
+            scaling=power_type,
+            axis=-1,
+        )
         model = AutoReg(psd_, max_lag)
         res = model.fit()
         psd = model.predict(res.params)
     else:
-        raise ValueError("Not a valid method. Choose between 'ar', 'lomb' "
-                         "and 'welch'")
+        raise ValueError(
+            "Not a valid method. Choose between 'ar', 'lomb' " "and 'welch'"
+        )
 
     return freq, psd
 
@@ -200,8 +205,7 @@ def calculate_spectrogram(rr_intervals, hr_sampling_frequency=4):
     return freq, psd, t
 
 
-def calculate_power_wavelet(rr_intervals, heart_rate=4,
-                            mother_wave='morlet'):
+def calculate_power_wavelet(rr_intervals, heart_rate=4, mother_wave="morlet"):
     """
     Method to calculate the spectral power using wavelet method.
 
@@ -231,7 +235,8 @@ def calculate_power_wavelet(rr_intervals, heart_rate=4,
     else:
         mother_morlet = wavelet.Morlet()
 
-    wave, scales, freqs, coi, fft, fftfreqs = \
-        wavelet.cwt(rr_intervals, dt, wavelet=mother_morlet)
+    wave, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(
+        rr_intervals, dt, wavelet=mother_morlet
+    )
     powers = (np.abs(wave)) ** 2
     return freqs, powers

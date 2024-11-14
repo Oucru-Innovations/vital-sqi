@@ -13,14 +13,18 @@ import pandas as pd
 
 class SignalSQI:
     """ """
-    def __init__(self, wave_type=None,
-                 signals=None,
-                 sampling_rate=None,
-                 start_datetime=None,
-                 info=None,
-                 sqis=None,
-                 rules=None,
-                 ruleset=None):
+
+    def __init__(
+        self,
+        wave_type=None,
+        signals=None,
+        sampling_rate=None,
+        start_datetime=None,
+        info=None,
+        sqis=None,
+        rules=None,
+        ruleset=None,
+    ):
         self.signals = signals
         self.sampling_rate = sampling_rate
         self.start_datetime = start_datetime
@@ -31,35 +35,38 @@ class SignalSQI:
         self.ruleset = ruleset
 
     def __setattr__(self, name, value):
-        if name == 'wave_type':
-            assert value == 'ecg' or value == 'ppg', \
-                'Expected either ecg or ppg.'
-        if name == 'signals':
-            assert isinstance(value, pd.DataFrame), \
-                'Expected signals as a pd.DataFrame with one channel per ' \
-                'column.'
-        if name == 'sampling_rate':
-            assert np.isreal(value), \
-                'Expected a numeric value. Sampling rate is round up to the ' \
-                'nearest integer.'
-        if name == 'info':
-            assert isinstance(value, (list, dict, pd.DataFrame)),\
-                'Expected info as a list, dict, or pd.DataFrame.'
+        if name == "wave_type":
+            assert value == "ecg" or value == "ppg", "Expected either ecg or ppg."
+        if name == "signals":
+            assert isinstance(value, pd.DataFrame), (
+                "Expected signals as a pd.DataFrame with one channel per " "column."
+            )
+        if name == "sampling_rate":
+            assert np.isreal(value), (
+                "Expected a numeric value. Sampling rate is round up to the "
+                "nearest integer."
+            )
+        if name == "info":
+            assert isinstance(
+                value, (list, dict, pd.DataFrame)
+            ), "Expected info as a list, dict, or pd.DataFrame."
         # if name == 'start_datetime':
         #     assert isinstance(value, str) or \
         #            isinstance(value, dt.datetime) or \
         #            isinstance(value, dt.date) or value is None, \
         #         'Expected str or datetime object, or None'
-        if name == 'sqis':
-            assert isinstance(value, (pd.DataFrame, list)) or value is None, \
-                'Expected SQI table as a pd.DataFrame, list of DataFrame or ' \
-                'None'
-        if name == 'rules':
-            assert isinstance(value, list) or \
-                   value is None, 'Expected rules as a list of Rule objects.'
-        if name == 'ruleset':
-            assert isinstance(value, dict) or \
-                   value is None, 'Expected ruleset as a RuleSet object'
+        if name == "sqis":
+            assert isinstance(value, (pd.DataFrame, list)) or value is None, (
+                "Expected SQI table as a pd.DataFrame, list of DataFrame or " "None"
+            )
+        if name == "rules":
+            assert (
+                isinstance(value, list) or value is None
+            ), "Expected rules as a list of Rule objects."
+        if name == "ruleset":
+            assert (
+                isinstance(value, dict) or value is None
+            ), "Expected ruleset as a RuleSet object"
         super().__setattr__(name, value)
         return
 

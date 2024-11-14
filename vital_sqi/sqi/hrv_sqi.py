@@ -26,9 +26,13 @@ HRV frequency domain
 import numpy as np
 from vital_sqi.common.power_spectrum import calculate_psd
 import warnings
-from hrvanalysis import get_time_domain_features, \
-    get_frequency_domain_features,  get_nn_intervals, get_csi_cvi_features, \
-    get_geometrical_features
+from hrvanalysis import (
+    get_time_domain_features,
+    get_frequency_domain_features,
+    get_nn_intervals,
+    get_csi_cvi_features,
+    get_geometrical_features,
+)
 from vital_sqi.common.rpeak_detection import PeakDetector
 from vital_sqi.common.utils import HiddenPrints
 
@@ -39,13 +43,13 @@ def nn_mean_sqi(nn_intervals):
     Parameters
     ----------
     nn_intervals :
-        
+
 
     Returns
     -------
     float
         The arithmetic mean of NN intervals.
-    
+
     """
 
     return np.mean(nn_intervals)
@@ -138,7 +142,7 @@ def cvnn_sqi(nn_intervals):
     float
         The covariance of the NN intervals
     """
-    return sdsd_sqi(nn_intervals)/mean_nn_sqi(nn_intervals)
+    return sdsd_sqi(nn_intervals) / mean_nn_sqi(nn_intervals)
 
 
 def mean_nn_sqi(nn_intervals):
@@ -313,7 +317,7 @@ def hr_range_sqi(nn_intervals, range_min=40, range_max=200):
     """
     nn_bpm = np.divide(60000, nn_intervals)
     out = sum(range_min >= nn_bpm) + sum(nn_bpm >= range_max)
-    out = round(100*out/len(nn_bpm), 2)
+    out = round(100 * out / len(nn_bpm), 2)
     return out
 
 
@@ -353,8 +357,9 @@ def peak_frequency_sqi(nn_intervals, freqs=None, pows=None, f_min=0.04, f_max=0.
     """
     if freqs is None or pows is None:
         freqs, pows = calculate_psd(nn_intervals)
-    assert len(freqs) == len(pows), \
-        "Length of the frequencies and the relevant powers must be the same"
+    assert len(freqs) == len(
+        pows
+    ), "Length of the frequencies and the relevant powers must be the same"
     # f_power = (pows[f_min <= freqs < f_max])
     f_power = pows[np.where((f_min <= freqs) & (freqs < f_max))[0]]
     f_peak = f_power[np.argmax(f_power)]
@@ -397,8 +402,9 @@ def absolute_power_sqi(nn_intervals, freqs=None, pows=None, f_min=0.04, f_max=0.
     """
     if freqs is None or pows is None:
         freqs, pows = calculate_psd(nn_intervals)
-    assert len(freqs) == len(pows), \
-        "Length of the frequencies and the relevant powers must be the same"
+    assert len(freqs) == len(
+        pows
+    ), "Length of the frequencies and the relevant powers must be the same"
     filtered_pows = pows[np.where((f_min <= freqs) & (freqs < f_max))[0]]
     abs_pow = np.sum(filtered_pows)
     return abs_pow
@@ -440,8 +446,9 @@ def log_power_sqi(nn_intervals, freqs=None, pows=None, f_min=0.04, f_max=0.15):
     """
     if freqs is None or pows is None:
         freqs, pows = calculate_psd(nn_intervals)
-    assert len(freqs) == len(pows), \
-        "Length of the frequencies and the relevant powers must be the same"
+    assert len(freqs) == len(
+        pows
+    ), "Length of the frequencies and the relevant powers must be the same"
     filtered_pows = pows[np.where((f_min <= freqs) & (freqs < f_max))[0]]
     log_pow = np.sum(np.log(filtered_pows))
     return log_pow
@@ -483,15 +490,23 @@ def relative_power_sqi(nn_intervals, freqs=None, pows=None, f_min=0.04, f_max=0.
     """
     if freqs is None or pows is None:
         freqs, pows = calculate_psd(nn_intervals)
-    assert len(freqs) == len(pows), \
-        "Length of the frequencies and the relevant powers must be the same"
+    assert len(freqs) == len(
+        pows
+    ), "Length of the frequencies and the relevant powers must be the same"
     filtered_pows = pows[np.where((f_min <= freqs) & (freqs < f_max))[0]]
-    relative_pow = np.sum(np.log(filtered_pows))/np.sum(pows)
+    relative_pow = np.sum(np.log(filtered_pows)) / np.sum(pows)
     return relative_pow
 
 
-def normalized_power_sqi(nn_intervals, freqs=None, pows=None,
-                         lf_min=0.04, lf_max=0.15, hf_min=0.15, hf_max=0.4):
+def normalized_power_sqi(
+    nn_intervals,
+    freqs=None,
+    pows=None,
+    lf_min=0.04,
+    lf_max=0.15,
+    hf_min=0.15,
+    hf_max=0.4,
+):
     """Compute the relative power with respect to the total power of the examined band.
     The function mimics features obtaining from the frequency domain of HRV.
     Main inputs are frequencies and power density - compute by using
@@ -529,8 +544,9 @@ def normalized_power_sqi(nn_intervals, freqs=None, pows=None,
     """
     if freqs is None or pows is None:
         freqs, pows = calculate_psd(nn_intervals)
-    assert len(freqs) == len(pows), \
-        "Length of the frequencies and the relevant powers must be the same"
+    assert len(freqs) == len(
+        pows
+    ), "Length of the frequencies and the relevant powers must be the same"
     # lf_filtered_pows = pows[freqs >= lf_min & freqs < lf_max]
     lf_filtered_pows = pows[np.where((freqs >= lf_min) & (freqs < lf_max))[0]]
     # hf_filtered_pows = pows[freqs >= hf_min & freqs < hf_max]
@@ -540,8 +556,15 @@ def normalized_power_sqi(nn_intervals, freqs=None, pows=None,
     return np.linalg.norm([lf_power, hf_power])
 
 
-def lf_hf_ratio_sqi(nn_intervals, freqs=None, pows=None,
-                    lf_min=0.04, lf_max=0.15, hf_min=0.15, hf_max=0.4):
+def lf_hf_ratio_sqi(
+    nn_intervals,
+    freqs=None,
+    pows=None,
+    lf_min=0.04,
+    lf_max=0.15,
+    hf_min=0.15,
+    hf_max=0.4,
+):
     """Compute the ratio power between the lower frequency and the high frequency.
     The function mimics features obtaining from the frequency domain of HRV.
     Main inputs are frequencies and power density - compute by using
@@ -579,12 +602,14 @@ def lf_hf_ratio_sqi(nn_intervals, freqs=None, pows=None,
     """
     if freqs is None or pows is None:
         freqs, pows = calculate_psd(nn_intervals)
-    assert len(freqs) == len(pows), \
-        "Length of the frequencies and the relevant powers must be the same"
+    assert len(freqs) == len(
+        pows
+    ), "Length of the frequencies and the relevant powers must be the same"
     lf_filtered_pows = pows[np.where((freqs >= lf_min) & (freqs < lf_max))[0]]
     hf_filtered_pows = pows[np.where((freqs >= hf_min) & (freqs < hf_max))[0]]
-    ratio = np.sum(lf_filtered_pows)/np.sum(hf_filtered_pows)
+    ratio = np.sum(lf_filtered_pows) / np.sum(hf_filtered_pows)
     return ratio
+
 
 def poincare_features_sqi(nn_intervals):
     """Function returning the poincare features of mapping nn intervals
@@ -603,28 +628,28 @@ def poincare_features_sqi(nn_intervals):
     area : float
         The area of the bounding eclipse
     ratio : float
-        
+
 
     Notes
     ---------
     If the purpose is to compute the HRV feature, the input
     must pass the preprocessing steps - remove the invalid peaks then do the
     interpolation - to obtain the normal to normal intervals.
-    
+
     If the purpose is to compute SQI, input the raw RR intervals -
     obtained from the peak detection algorithm.
     """
     group_i = nn_intervals[:-1]
     group_j = nn_intervals[1:]
 
-    sd1 = np.std(group_j-group_i)
-    sd2 = np.std(group_j+group_i)
+    sd1 = np.std(group_j - group_i)
+    sd2 = np.std(group_j + group_i)
 
     area = np.pi * sd1 * sd2
-    ratio = sd1/sd2
+    ratio = sd1 / sd2
 
     poincare_features_dict = {
-        "poincare_features_sd1_sqi":sd1,
+        "poincare_features_sd1_sqi": sd1,
         "poincare_features_sd2_sqi": sd2,
         "poincare_features_area_sqi": area,
         "poincare_features_ratio_sqi": ratio,
@@ -633,7 +658,7 @@ def poincare_features_sqi(nn_intervals):
     return poincare_features_dict
 
 
-def get_all_features_hrva(s, sample_rate=100, rpeak_method=0,wave_type='ecg'):
+def get_all_features_hrva(s, sample_rate=100, rpeak_method=0, wave_type="ecg"):
     """
 
     Parameters
@@ -650,16 +675,16 @@ def get_all_features_hrva(s, sample_rate=100, rpeak_method=0,wave_type='ecg'):
 
 
     """
-    if wave_type =='ppg':
-        detector = PeakDetector(wave_type='ppg')
+    if wave_type == "ppg":
+        detector = PeakDetector(wave_type="ppg")
         peak_list, trough_list = detector.ppg_detector(s, detector_type=rpeak_method)
     else:
-        detector = PeakDetector(wave_type='ecg')
+        detector = PeakDetector(wave_type="ecg")
         peak_list, trough_list = detector.ecg_detector(s, detector_type=rpeak_method)
 
     if len(peak_list) < 2:
         warnings.warn("Peak Detector cannot find more than 2 peaks to process")
-        return [],[],[],[]
+        return [], [], [], []
 
     rr_list = np.diff(peak_list) * (1000 / sample_rate)  # 1000 milisecond
 
@@ -674,5 +699,9 @@ def get_all_features_hrva(s, sample_rate=100, rpeak_method=0,wave_type='ecg'):
         geometrical_features = get_geometrical_features(rr_list)
         csi_cvi_features = get_csi_cvi_features(rr_list)
 
-    return time_domain_features, frequency_domain_features, geometrical_features, csi_cvi_features
-
+    return (
+        time_domain_features,
+        frequency_domain_features,
+        geometrical_features,
+        csi_cvi_features,
+    )

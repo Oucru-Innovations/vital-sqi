@@ -8,7 +8,7 @@
 
 ![GitHub stars](https://img.shields.io/github/stars/Oucru-Innovations/vital-sqi?style=social)
 ![Build Status](https://github.com/Oucru-Innovations/vital-sqi/actions/workflows/ci.yml/badge.svg)
-[![Coverage Status](https://coveralls.io/repos/github/Oucru-Innovations/vital-sqi/badge.svg)](https://coveralls.io/github/Oucru-Innovations/vital-sqi)
+[![Coverage Status](https://coveralls.io/repos/github/Oucru-Innovations/vital-sqi/badge.svg?branch=main)](https://coveralls.io/github/Oucru-Innovations/vital-sqi?branch=main)
 <!-- [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) -->
 ![GitHub License](https://img.shields.io/github/license/Oucru-Innovations/vital-sqi)
 ![Python Versions](https://img.shields.io/badge/python-3.7%2B-blue)

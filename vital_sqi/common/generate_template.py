@@ -1,4 +1,5 @@
 """Generating templates of ECG and PPG complexes"""
+
 import numpy as np
 
 from scipy.special import erf
@@ -28,7 +29,7 @@ def squeeze_template(s, width):
     total_len = len(s)
     span_unit = 2
     out_res = []
-    for i,val in enumerate(np.arange(int(width))):
+    for i, val in enumerate(np.arange(int(width))):
         if i == 0:
             centroid = (total_len / width) * i
         else:
@@ -42,6 +43,7 @@ def squeeze_template(s, width):
         out_res.append(np.mean(s[left_point:right_point]))
     return np.array(out_res)
 
+
 def ppg_dual_double_frequency_template(width):
     """
     EXPOSE
@@ -52,8 +54,7 @@ def ppg_dual_double_frequency_template(width):
     having diastolic peak at the low position
     """
     t = np.linspace(0, 1, width, False)  # 1 second
-    sig = np.sin(2 * np.pi * 2 * t - np.pi / 2) + \
-        np.sin(2 * np.pi * 1 * t - np.pi / 6)
+    sig = np.sin(2 * np.pi * 2 * t - np.pi / 2) + np.sin(2 * np.pi * 1 * t - np.pi / 6)
     sig_scale = MinMaxScaler().fit_transform(np.array(sig).reshape(-1, 1))
     return sig_scale.reshape(-1)
 
@@ -69,13 +70,11 @@ def skew_func(x, e=0, w=1, a=0):
     """
     t = (x - e) / w
     omega = (1 + erf((a * t) / np.sqrt(2))) / 2
-    gaussian_dist = 1 / (np.sqrt(2 * np.pi)) * np.exp(-(t ** 2) / 2)
+    gaussian_dist = 1 / (np.sqrt(2 * np.pi)) * np.exp(-(t**2) / 2)
     return 2 / w * gaussian_dist * omega
 
 
-def ppg_absolute_dual_skewness_template(width, e_1=1,
-                                        w_1=2.5, e_2=3,
-                                        w_2=3, a=4):
+def ppg_absolute_dual_skewness_template(width, e_1=1, w_1=2.5, e_2=3, w_2=3, a=4):
     """
     EXPOSE
     Generate a PPG template by using 2 skewness distribution.
@@ -125,16 +124,16 @@ def ppg_nonlinear_dynamic_system_template(width):
         x2_list.append(x2)
 
     local_minima = argrelextrema(np.array(x2_list), np.less)[0]
-    s = np.array(x2_list[local_minima[-2]:local_minima[-1] + 1])
+    s = np.array(x2_list[local_minima[-2] : local_minima[-1] + 1])
 
     rescale_signal = squeeze_template(s, width)
 
     window = signal.windows.cosine(len(rescale_signal), 0.5)
-    signal_data_tapered = np.array(window) * \
-        (rescale_signal - min(rescale_signal))
+    signal_data_tapered = np.array(window) * (rescale_signal - min(rescale_signal))
 
     out_scale = MinMaxScaler().fit_transform(
-        np.array(signal_data_tapered).reshape(-1, 1))
+        np.array(signal_data_tapered).reshape(-1, 1)
+    )
     return out_scale.reshape(-1)
 
 
@@ -152,7 +151,7 @@ def interp(ys, mul):
     xs = np.arange(len(ys))
     fn = scipy.interpolate.interp1d(xs, ys, kind="cubic")
     # call it on desired data points
-    new_xs = np.arange(len(ys) - 1, step=1. / mul)
+    new_xs = np.arange(len(ys) - 1, step=1.0 / mul)
     return fn(new_xs)
 
 
@@ -162,12 +161,19 @@ A dynamical model for generating synthetic electrocardiogram signals
 """
 
 
-def ecg_dynamic_template(width, sfecg=256, N=256, Anoise=0, hrmean=60,
-                         hrstd=1, lfhfratio=0.5, sfint=512,
-                         ti=np.array([-70, -15, 0, 15, 100]),
-                         ai=np.array([1.2, -5, 30, -7.5, 0.75]),
-                         bi=np.array([0.25, 0.1, 0.1, 0.1, 0.4])
-                         ):
+def ecg_dynamic_template(
+    width,
+    sfecg=256,
+    N=256,
+    Anoise=0,
+    hrmean=60,
+    hrstd=1,
+    lfhfratio=0.5,
+    sfint=512,
+    ti=np.array([-70, -15, 0, 15, 100]),
+    ai=np.array([1.2, -5, 30, -7.5, 0.75]),
+    bi=np.array([0.25, 0.1, 0.1, 0.1, 0.4]),
+):
     """
     EXPOSE
     :param width:
@@ -200,11 +206,12 @@ def ecg_dynamic_template(width, sfecg=256, N=256, Anoise=0, hrmean=60,
     # calculate time scales for rr and total output
     sampfreqrr = 1
     trr = 1 / sampfreqrr
-    rrmean = (60 / hrmean)
+    rrmean = 60 / hrmean
     Nrr = 2 ** (np.ceil(np.log2(N * rrmean / trr)))
 
-    rr0 = rr_process(flo, fhi, flostd, fhistd,
-                     lfhfratio, hrmean, hrstd, sampfreqrr, Nrr)
+    rr0 = rr_process(
+        flo, fhi, flostd, fhistd, lfhfratio, hrmean, hrstd, sampfreqrr, Nrr
+    )
 
     # upsample rr time series from 1 Hz to sfint Hz
     rr = interp(rr0, sfint)
@@ -215,14 +222,19 @@ def ecg_dynamic_template(width, sfecg=256, N=256, Anoise=0, hrmean=60,
     while i < len(rr):
         tecg = tecg + rr[i]
         ip = int(np.round(tecg / dt))
-        rrn[i: ip + 1] = rr[i]
+        rrn[i : ip + 1] = rr[i]
         i = ip + 1
     Nt = ip
     x0 = [1, 0, 0.04]
     tspan = np.arange(0, (Nt - 1) * dt, dt)
     args = (rrn, sfint, ti, ai, bi)
-    solv_ode = solve_ivp(ordinary_differential_equation, [tspan[0], tspan[-1]],
-                         x0, t_eval=np.arange(20.5, 21.5, 0.00001), args=args)
+    solv_ode = solve_ivp(
+        ordinary_differential_equation,
+        [tspan[0], tspan[-1]],
+        x0,
+        t_eval=np.arange(20.5, 21.5, 0.00001),
+        args=args,
+    )
     Y = (solv_ode.y)[2]
 
     # if len(Y) > width:
@@ -230,8 +242,9 @@ def ecg_dynamic_template(width, sfecg=256, N=256, Anoise=0, hrmean=60,
     return Y
 
 
-def ordinary_differential_equation(t, x_equations, rr=None,
-                                   sfint=None, ti=None, ai=None, bi=None):
+def ordinary_differential_equation(
+    t, x_equations, rr=None, sfint=None, ti=None, ai=None, bi=None
+):
     """
     handy
     :param t:
@@ -249,7 +262,7 @@ def ordinary_differential_equation(t, x_equations, rr=None,
 
     ta = np.arctan2(y, x)
     r0 = 1
-    a0 = 1.0 - np.sqrt(x ** 2 + y ** 2) / r0
+    a0 = 1.0 - np.sqrt(x**2 + y**2) / r0
     ip = int(1 + np.floor(t * sfint))
     try:
         w0 = 2 * np.pi / rr[ip]
@@ -300,10 +313,8 @@ def rr_process(flo, fhi, flostd, fhistd, lfhfratio, hrmean, hrstd, sfrr, n):
     dw1 = w - w1
     dw2 = w - w2
 
-    Hw1 = sig1 * np.exp(-0.5 * (dw1 / c1) ** 2) / \
-        np.sqrt(2 * np.pi * np.power(c1, 2))
-    Hw2 = sig2 * np.exp(-0.5 * (dw2 / c2) ** 2) / \
-        np.sqrt(2 * np.pi * np.power(c2, 2))
+    Hw1 = sig1 * np.exp(-0.5 * (dw1 / c1) ** 2) / np.sqrt(2 * np.pi * np.power(c1, 2))
+    Hw2 = sig2 * np.exp(-0.5 * (dw2 / c2) ** 2) / np.sqrt(2 * np.pi * np.power(c2, 2))
     Hw = Hw1 + Hw2
     """
     An RR-interval time series T(t)
@@ -312,9 +323,9 @@ def rr_process(flo, fhi, flostd, fhistd, lfhfratio, hrmean, hrstd, sfrr, n):
     a sequence of complex numbers with amplitudes sqrt(S(f))
     and phases which are randomly distributed between 0 and 2pi
     """
-    Hw0_half = np.array(Hw[0:int(n / 2)])
+    Hw0_half = np.array(Hw[0 : int(n / 2)])
     Hw0 = np.append(Hw0_half, np.flip(Hw0_half))
-    Sw = (sfrr / 2) * (Hw0 ** .5)
+    Sw = (sfrr / 2) * (Hw0**0.5)
 
     ph0 = 2 * np.pi * np.random.rand(int(n / 2) - 1, 1)
     # ph0 = 2 * np.pi * 0.001*np.arange(127).reshape(-1,1)

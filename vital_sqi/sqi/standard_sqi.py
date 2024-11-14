@@ -32,11 +32,10 @@ def perfusion_sqi(x, y):
     -------
 
     """
-    return (np.max(y)-np.min(y))/np.abs(np.mean(x))*100
+    return (np.max(y) - np.min(y)) / np.abs(np.mean(x)) * 100
 
 
-def kurtosis_sqi(x, axis=0, fisher=True, bias=True,
-                 nan_policy='propagate'):
+def kurtosis_sqi(x, axis=0, fisher=True, bias=True, nan_policy="propagate"):
     """Expose
     Kurtosis is a measure of whether the data are heavy-tailed or
     light-tailed relative to a normal distribution. That is, data sets with
@@ -70,7 +69,7 @@ def kurtosis_sqi(x, axis=0, fisher=True, bias=True,
     return kurtosis(x, axis, fisher, bias, nan_policy)
 
 
-def skewness_sqi(x, axis=0, bias=True, nan_policy='propagate'):
+def skewness_sqi(x, axis=0, bias=True, nan_policy="propagate"):
     """Expose
     Skewness is a measure of symmetry, or more precisely, the lack of
     symmetry. A distribution, or data set, is symmetric if it looks the same
@@ -147,11 +146,12 @@ def signal_to_noise_sqi(a, axis=0, ddof=0):
     a = np.asanyarray(a)
     m = a.mean(axis)
     sd = a.std(axis=axis, ddof=ddof)
-    return np.where(sd == 0, 0, m/sd)
+    return np.where(sd == 0, 0, m / sd)
 
 
-def zero_crossings_rate_sqi(y, threshold=1e-10, ref_magnitude=None,
-                            pad=True, zero_pos=True, axis=-1):
+def zero_crossings_rate_sqi(
+    y, threshold=1e-10, ref_magnitude=None, pad=True, zero_pos=True, axis=-1
+):
     """Reuse the function from librosa package.
     This is the rate of sign-changes in the processed signal, that is,
     the rate at which the signal changes from positive to negative or back.
@@ -224,8 +224,9 @@ def zero_crossings_rate_sqi(y, threshold=1e-10, ref_magnitude=None,
     return np.mean(crossings, axis=0, keepdims=True)[0]
 
 
-def mean_crossing_rate_sqi(y, threshold=1e-10, ref_magnitude=None,
-                           pad=True, zero_pos=True, axis=-1):
+def mean_crossing_rate_sqi(
+    y, threshold=1e-10, ref_magnitude=None, pad=True, zero_pos=True, axis=-1
+):
     """Expose
     Same as zero crossing rate but this function interests in the rate of
     crossing signal mean
@@ -249,6 +250,6 @@ def mean_crossing_rate_sqi(y, threshold=1e-10, ref_magnitude=None,
     -------
 
     """
-    return zero_crossings_rate_sqi(y-np.mean(y), threshold, ref_magnitude,
-                                   pad, zero_pos, axis)
-
+    return zero_crossings_rate_sqi(
+        y - np.mean(y), threshold, ref_magnitude, pad, zero_pos, axis
+    )

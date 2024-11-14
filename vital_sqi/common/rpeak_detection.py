@@ -2,7 +2,6 @@
 
 """
 
-
 import numpy as np
 from sklearn.cluster import KMeans
 from scipy import signal
@@ -30,8 +29,8 @@ PAN_TOMPKINS = 7
 
 
 def get_moving_average(q, w):
-    q_padded = np.pad(q, (w // 2, w - 1 - w // 2), mode='edge')
-    convole = np.convolve(q_padded, np.ones(w) / w, 'valid')
+    q_padded = np.pad(q, (w // 2, w - 1 - w // 2), mode="edge")
+    convole = np.convolve(q_padded, np.ones(w) / w, "valid")
     return convole
 
 
@@ -48,12 +47,13 @@ class PeakDetector:
 
 
     """
-    def __init__(self, wave_type='ppg', fs=100):
+
+    def __init__(self, wave_type="ppg", fs=100):
         self.clusters = 2
         self.wave_type = wave_type
         self.fs = fs
 
-    def ecg_detector(self, s, detector_type=PAN_TOMPKINS, get_nadir = False):
+    def ecg_detector(self, s, detector_type=PAN_TOMPKINS, get_nadir=False):
         """Expose
 
         ECG peak detector from the github
@@ -85,26 +85,28 @@ class PeakDetector:
 
 
         """
-        f1 = 5/self.fs
-        f2 = 15/self.fs
+        f1 = 5 / self.fs
+        f2 = 15 / self.fs
 
-        b, a = signal.butter(1, [f1*2, f2*2], btype='bandpass')
+        b, a = signal.butter(1, [f1 * 2, f2 * 2], btype="bandpass")
 
         filtered_ecg = signal.lfilter(b, a, s)
 
         diff = np.diff(filtered_ecg).reshape(-1)
         squared = diff**2
 
-        N = int(0.12*self.fs)
+        N = int(0.12 * self.fs)
 
         # compute moving average
-        mwa = get_moving_average(squared,N)
+        mwa = get_moving_average(squared, N)
 
-        mwa[:int(0.2*self.fs)] = 0
+        mwa[: int(0.2 * self.fs)] = 0
 
-        if self.wave_type == 'ppg':
-            warnings.warn("A ECG detectors is using on PPG waveform. "
-                          "Output may produce incorrect result")
+        if self.wave_type == "ppg":
+            warnings.warn(
+                "A ECG detectors is using on PPG waveform. "
+                "Output may produce incorrect result"
+            )
         detector = Detectors(self.fs)
         if detector_type == HAMILTON:
             mwa_peaks = detector.hamilton_detector(s)
@@ -122,29 +124,35 @@ class PeakDetector:
             mwa_peaks = detector.pan_tompkins_detector(s)
 
         if len(mwa_peaks) == 0:
-            return [],[]
+            return [], []
         # append the first and the last
-        normal_beat_length = (self.fs * (60/100))/2
-        if mwa_peaks[0] > normal_beat_length/2:
-            mwa_peaks = np.hstack((0,mwa_peaks))
-        if len(s)-mwa_peaks[-1]>normal_beat_length/2:
-            mwa_peaks = np.hstack((mwa_peaks,len(s)))
+        normal_beat_length = (self.fs * (60 / 100)) / 2
+        if mwa_peaks[0] > normal_beat_length / 2:
+            mwa_peaks = np.hstack((0, mwa_peaks))
+        if len(s) - mwa_peaks[-1] > normal_beat_length / 2:
+            mwa_peaks = np.hstack((mwa_peaks, len(s)))
         # compute the segment points
         trough_list = []
         nadir_min_list = []
-        for idx,val in enumerate(np.arange(len(mwa_peaks)-1)):
+        for idx, val in enumerate(np.arange(len(mwa_peaks) - 1)):
             peak_idx = mwa_peaks[idx]
-            next_peak_idx = mwa_peaks[idx+1]
+            next_peak_idx = mwa_peaks[idx + 1]
             interval = mwa[peak_idx:next_peak_idx]
-            interval_diff = np.diff(interval,3)
-            trough_list.append(np.argmin(interval_diff)+1+peak_idx)
-            nadir_min_list.append(np.argmin(interval)+peak_idx)
+            interval_diff = np.diff(interval, 3)
+            trough_list.append(np.argmin(interval_diff) + 1 + peak_idx)
+            nadir_min_list.append(np.argmin(interval) + peak_idx)
         if get_nadir:
-            return mwa_peaks,trough_list,nadir_min_list
-        return mwa_peaks,trough_list
+            return mwa_peaks, trough_list, nadir_min_list
+        return mwa_peaks, trough_list
 
-    def ppg_detector(self, s, detector_type=ADAPTIVE_THRESHOLD,
-                     clusterer="kmean", preprocess=False, cubing=False):
+    def ppg_detector(
+        self,
+        s,
+        detector_type=ADAPTIVE_THRESHOLD,
+        clusterer="kmean",
+        preprocess=False,
+        cubing=False,
+    ):
         """Expose
 
         PPG peak detector from the paper
@@ -174,36 +182,39 @@ class PeakDetector:
             s = filter.signal_highpass_filter(s, cutoff=1, order=2)
             s = filter.signal_lowpass_filter(s, cutoff=12, order=2)
         if cubing:
-            s = s ** 3
+            s = s**3
 
         if self.wave_type != "ppg":
-            warnings.warn("A PPG detectors is using on  unrecognized "
-                          "PPG waveform. Output may produce incorrect result")
+            warnings.warn(
+                "A PPG detectors is using on  unrecognized "
+                "PPG waveform. Output may produce incorrect result"
+            )
         try:
             if detector_type == CLUSTERER_METHOD:
-                peak_finalist, trough_finalist = \
-                    self.detect_peak_trough_clusterer(s)
+                peak_finalist, trough_finalist = self.detect_peak_trough_clusterer(s)
             elif detector_type == SLOPE_SUM_METHOD:
-                peak_finalist, trough_finalist = \
-                    self.detect_peak_trough_slope_sum(s)
+                peak_finalist, trough_finalist = self.detect_peak_trough_slope_sum(s)
             elif detector_type == MOVING_AVERAGE_METHOD:
-                peak_finalist, trough_finalist = \
+                peak_finalist, trough_finalist = (
                     self.detect_peak_trough_moving_average_threshold(s)
+                )
             elif detector_type == COUNT_ORIG_METHOD:
-                peak_finalist, trough_finalist = \
-                    self.detect_peak_trough_count_orig(s)
+                peak_finalist, trough_finalist = self.detect_peak_trough_count_orig(s)
             elif detector_type == DEFAULT_SCIPY:
-                peak_finalist, trough_finalist = \
-                    self.detect_peak_trough_default_scipy(s)
+                peak_finalist, trough_finalist = self.detect_peak_trough_default_scipy(
+                    s
+                )
             elif detector_type == BILLAUER_METHOD:
-                peak_finalist, trough_finalist = \
-                    self.detect_peak_trough_billauer(s)
+                peak_finalist, trough_finalist = self.detect_peak_trough_billauer(s)
             else:
-                peak_finalist, trough_finalist = \
+                peak_finalist, trough_finalist = (
                     self.detect_peak_trough_adaptive_threshold(s)
+                )
         except Exception as err:
-            warnings.warn(f"Current peak detection method raise {err} \n"
-                          f"Package changed to default peak detection")
+            warnings.warn(
+                f"Current peak detection method raise {err} \n"
+                f"Package changed to default peak detection"
+            )
             return signal.find_peaks(s)[0], []
 
         return peak_finalist, trough_finalist
@@ -227,7 +238,7 @@ class PeakDetector:
         f0 = 0.1 / self.fs
         f1 = 48 / self.fs
 
-        b, a = signal.butter(4, [f0 * 2, f1 * 2], btype='bandpass')
+        b, a = signal.butter(4, [f0 * 2, f1 * 2], btype="bandpass")
 
         prefiltered_ecg = signal.lfilter(b, a, unfiltered_ecg)
 
@@ -237,7 +248,7 @@ class PeakDetector:
         detection = signal.lfilter(matched_coeffs, 1, prefiltered_ecg)
         # squaring matched filter output
         squared = detection * detection
-        squared[:len(template)] = 0
+        squared[: len(template)] = 0
 
         squared_peaks = panPeakDetect(squared, self.fs)
 
@@ -266,7 +277,7 @@ class PeakDetector:
         mean_diff = mean_diff.reshape(-1, 1)
         return np.hstack((amplitude, mean_diff))
 
-    def detect_peak_trough_clusterer(self, s, clusterer='kmean', **kwargs):
+    def detect_peak_trough_clusterer(self, s, clusterer="kmean", **kwargs):
         """handy
         Method 1: using clustering technique
 
@@ -295,16 +306,25 @@ class PeakDetector:
         # lower, middle, upper = np.quantile(s, [0.25, 0.5, 0.75])
 
         # clusterer = KMeans(kwargs)
-        clusterer = KMeans(n_clusters=2, init='k-means++', n_init=10,
-                           max_iter=300, tol=0.0001,
-                           precompute_distances='deprecated',
-                           verbose=0, random_state=None, copy_x=True,
-                           n_jobs='deprecated', algorithm='auto')
+        clusterer = KMeans(
+            n_clusters=2,
+            init="k-means++",
+            n_init=10,
+            max_iter=300,
+            tol=0.0001,
+            precompute_distances="deprecated",
+            verbose=0,
+            random_state=None,
+            copy_x=True,
+            n_jobs="deprecated",
+            algorithm="auto",
+        )
 
         convert_maxima = self.compute_feature(s, local_maxima)
         clusterer.fit(convert_maxima)
         systolic_group = clusterer.predict(
-            convert_maxima[np.argmax(s[local_maxima])].reshape(1, -1))
+            convert_maxima[np.argmax(s[local_maxima])].reshape(1, -1)
+        )
         labels = clusterer.predict(convert_maxima)
 
         systolic_peaks_idx = local_maxima[np.where(labels == systolic_group)]
@@ -315,7 +335,8 @@ class PeakDetector:
         convert_minima = self.compute_feature(s, local_minima)
         clusterer.fit(convert_minima)
         trough_group = clusterer.predict(
-            convert_minima[np.argmin(s[local_minima])].reshape(1, -1))
+            convert_minima[np.argmin(s[local_minima])].reshape(1, -1)
+        )
         labels = clusterer.predict(convert_minima)
 
         trough_idx = local_minima[np.where(labels == trough_group)]
@@ -341,16 +362,19 @@ class PeakDetector:
         for idx in range(len(s) - 1):
             if mva[idx] > s[idx] and mva[idx + 1] < s[idx + 1]:
                 start_pos.append(idx)
-            elif mva[idx] < s[idx] and mva[idx + 1] > s[idx + 1] \
-                    and len(start_pos) > len(end_pos):
+            elif (
+                mva[idx] < s[idx]
+                and mva[idx + 1] > s[idx + 1]
+                and len(start_pos) > len(end_pos)
+            ):
                 end_pos.append(idx)
         if len(start_pos) > len(end_pos):
             end_pos.append(len(s) - 1)
         return start_pos, end_pos
 
-    def detect_peak_trough_adaptive_threshold(self, s,
-                                              adaptive_size=0.75,
-                                              overlap=0, sliding=1):
+    def detect_peak_trough_adaptive_threshold(
+        self, s, adaptive_size=0.75, overlap=0, sliding=1
+    ):
         """
 
         Parameters
@@ -370,18 +394,17 @@ class PeakDetector:
         """
         # number of instances in the adaptive window
         adaptive_window = adaptive_size * self.fs
-        adaptive_threshold = get_moving_average(
-            s, int(adaptive_window * 2 + 1))
+        adaptive_threshold = get_moving_average(s, int(adaptive_window * 2 + 1))
 
         start_ROIs, end_ROIs = self.get_ROI(s, adaptive_threshold)
         peak_finalist = []
         for start_ROI, end_ROI in zip(start_ROIs, end_ROIs):
-            region = s[start_ROI:end_ROI + 1]
+            region = s[start_ROI : end_ROI + 1]
             peak_finalist.append(np.argmax(region) + start_ROI)
 
         trough_finalist = []
         for idx in range(len(peak_finalist) - 1):
-            region = s[peak_finalist[idx]:peak_finalist[idx + 1]]
+            region = s[peak_finalist[idx] : peak_finalist[idx + 1]]
             trough_finalist.append(np.argmin(region) + peak_finalist[idx])
 
         return peak_finalist, trough_finalist
@@ -401,7 +424,7 @@ class PeakDetector:
         peak_finalist = signal.find_peaks(s)[0]
         trough_finalist = []
         for idx in range(len(peak_finalist) - 1):
-            region = s[peak_finalist[idx]:peak_finalist[idx + 1]]
+            region = s[peak_finalist[idx] : peak_finalist[idx + 1]]
             trough_finalist.append(np.argmin(region) + peak_finalist[idx])
 
         return peak_finalist, trough_finalist
@@ -429,10 +452,12 @@ class PeakDetector:
         peak_threshold = np.quantile(s[local_maxima], 0.75) * 0.2
         trough_threshold = np.quantile(s[local_minima], 0.25) * 0.2
 
-        peak_shortlist = np.array([optima for optima in local_maxima
-                                   if s[optima] >= peak_threshold])
-        trough_shortlist = np.array([optima for optima in local_minima
-                                     if s[optima] <= trough_threshold])
+        peak_shortlist = np.array(
+            [optima for optima in local_maxima if s[optima] >= peak_threshold]
+        )
+        trough_shortlist = np.array(
+            [optima for optima in local_minima if s[optima] <= trough_threshold]
+        )
 
         peak_finalist = []
         through_finalist = []
@@ -440,8 +465,11 @@ class PeakDetector:
         for i in range(1, len(trough_shortlist)):
 
             right_trough = trough_shortlist[i]
-            peaks = [peak for peak in peak_shortlist
-                     if peak < right_trough and peak > left_trough]
+            peaks = [
+                peak
+                for peak in peak_shortlist
+                if peak < right_trough and peak > left_trough
+            ]
             if len(peaks) == 0:
                 left_trough = np.array([left_trough, right_trough])
                 [np.argmin([s[left_trough], s[right_trough]])]
@@ -489,7 +517,7 @@ class PeakDetector:
         Z = np.array(Z)
 
         fs = 100
-        Z_threshold = 3 * np.mean(Z[:10 * fs])
+        Z_threshold = 3 * np.mean(Z[: 10 * fs])
         threshold_base = Z_threshold
 
         for n in range(len(Z)):
@@ -507,7 +535,8 @@ class PeakDetector:
                     # Accept the pulse
                     threshold_crossing_point = n
                     onset = self.search_for_onset(
-                        Z, threshold_crossing_point, local_max)
+                        Z, threshold_crossing_point, local_max
+                    )
                     onset_list.append(onset)
                     # peak_finalist.append(threshold_crossing_point+np.argmax())
                 # maximum Z[n] value for each pulse detected
@@ -522,8 +551,10 @@ class PeakDetector:
                 peak_finalist.append(np.argmax(s[left:right]) + left)
                 trough_finalist.append(np.argmin(s[left:right]) + left)
             except Exception as e:
-                warnings.warn(f'Peak detection - SLOPE_SUM_METHOD - '
-                              f'raise {e} at index {trough_idx}')
+                warnings.warn(
+                    f"Peak detection - SLOPE_SUM_METHOD - "
+                    f"raise {e} at index {trough_idx}"
+                )
         return peak_finalist, onset_list
 
     def search_for_onset(Z, idx, local_max):
@@ -568,8 +599,8 @@ class PeakDetector:
         through_finalist = []
 
         # Bandpass filter
-        #filter = BandpassFilter()
-        #S = filter.signal_highpass_filter(s, 0.5, fs=100)
+        # filter = BandpassFilter()
+        # S = filter.signal_highpass_filter(s, 0.5, fs=100)
         # S = butter_lowpass_filter(S,8,fs=100)
         # S = s
         # Clipping the output by keeping the signal
@@ -577,7 +608,7 @@ class PeakDetector:
         Z = np.array([np.max([0, z]) for z in s])
         # Squaring suppressing the small differences
         # arising from the diastolic wave and noise
-        y = Z ** 2
+        y = Z**2
 
         w1 = 12  # 111ms
         w2 = 67  # 678ms
@@ -606,7 +637,7 @@ class PeakDetector:
         # index where the block move to other block
         BOI_width_idx = np.where(BOI_diff > 1)[0]
 
-        for i,val in enumerate(np.arange(len(BOI_width_idx))):
+        for i, val in enumerate(np.arange(len(BOI_width_idx))):
             if i == 0:
                 BOI_width = BOI_width_idx[i]
             else:
@@ -619,16 +650,15 @@ class PeakDetector:
                     left_idx = BOI_width_idx[i - 1]
                 # left_idx = BOI_width_idx[np.max([0,i-1])]
                 right_idx = BOI_width_idx[i]
-                region = y[BOI_idx[left_idx]:BOI_idx[right_idx] + 1]
+                region = y[BOI_idx[left_idx] : BOI_idx[right_idx] + 1]
                 peak_finalist.append(BOI_idx[left_idx] + np.argmax(region))
 
         return peak_finalist, through_finalist
 
-      
     def detect_peak_trough_billauer(self, s):
         """
         Converted from MATLAB script at http://billauer.co.il/peakdet.html
-        
+
 
         Returns two arrays
 
@@ -667,7 +697,7 @@ class PeakDetector:
 
 
         """
-        #Scale data
+        # Scale data
         s_min = np.min(s)
         s_max = np.max(s)
         s = np.interp(s, (s_min, s_max), (-1, +1))
@@ -678,13 +708,13 @@ class PeakDetector:
 
         x = np.arange(len(s))
         v = np.asarray(s)
-        assert np.isscalar(delta), 'Input argument delta must be a scalar'
-        assert delta > 0, 'Input argument delta must be positive'
+        assert np.isscalar(delta), "Input argument delta must be a scalar"
+        assert delta > 0, "Input argument delta must be positive"
 
         mn, mx = np.Inf, -np.Inf
         mnpos, mxpos = np.NaN, np.NaN
         lookformax = True
-        for i,val in enumerate(np.arange(len(v))):
+        for i, val in enumerate(np.arange(len(v))):
             this = v[i]
             if this > mx:
                 mx = this
@@ -693,13 +723,13 @@ class PeakDetector:
                 mn = this
                 mnpos = x[i]
             if lookformax:
-                if this < mx-delta:
+                if this < mx - delta:
                     maxtab.append(mxpos)
                     mn = this
                     mnpos = x[i]
                     lookformax = False
             else:
-                if this > mn+delta:
+                if this > mn + delta:
                     mintab.append(mnpos)
                     mx = this
                     mxpos = x[i]

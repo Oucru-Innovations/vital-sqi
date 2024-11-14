@@ -14,7 +14,7 @@ jobs:
         python-version: [3.7, 3.8]
 
     env:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
 
     steps:
       - name: Checkout code
@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install tox-travis flake8 tox pytest matplotlib==3.3.4 pytest-cov codecov
+          pip install tox-travis flake8 tox pytest matplotlib==3.3.4 pytest-cov coveralls
           pip install dash-bootstrap-components dash[testing] webdriver_manager selenium
           pip install --upgrade setuptools importlib-metadata
           pip install -e .
@@ -51,10 +51,10 @@ jobs:
         run: |
           Xvfb :99 & sleep 3
           pytest --cov=vital_sqi tests
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
+            
+      - name: Upload to Coveralls
+        uses: coverallsapp/github-action@v2.3.4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
-          flags: unittests
+          github-token: ${{ secrets.COVERALLS_REPO_TOKEN }}
+          coveralls-endpoint: https://coveralls.io
+          path-to-lcov: ./tests  # Adjust if necessary
