@@ -1,292 +1,216 @@
 Contributions
 =============
 
-Creating the virtual environment
---------------------------------
+Thank you for your interest in contributing to **vital_sqi**! This guide provides a detailed workflow for setting up your development environment, contributing new features or fixes, and generating documentation.
 
-A virtual environment is a tool that helps to keep dependencies required by
-different projects separate by creating isolated python virtual environments
-for them. This is one of the most important tools that Python developers use.
+Creating a Virtual Environment
+------------------------------
+A virtual environment helps to isolate dependencies for different projects, ensuring no conflicts arise between packages. Follow these steps:
 
-In recent versions of python (>3) we can use venv. If you have various
-versions of python you might need to use python3 or py instead.
+**Using `venv` (Python >= 3.3):**
 
-.. code::
+1. **Install `venv`:**
+   .. code-block:: console
 
-  python -m pip install venv           # Install venv
-  python -m venv <environment-name>    # Create environment
+      python -m pip install venv
 
-Otherwise, using standard virtualenv (linux-based systems)
+2. **Create a Virtual Environment:**
+   .. code-block:: console
 
-.. code::
+      python -m venv <environment-name>
 
-  which python                                    # where is python
-  pip install virtualenv                          # Install virtualenv
-  virtualenv -p <python-path> <environment-name>  # create virtualenv
+3. **Activate the Virtual Environment:**
+   .. code-block:: console
 
-Let's activate the environment
+      source <environment-name>/bin/activate    # macOS/Linux
+      <environment-name>\Scripts\activate       # Windows
 
-.. code::
+**Using `virtualenv`:**
 
-  source <environment-name>/bin/activate          # activate environment
+1. **Install `virtualenv`:**
+   .. code-block:: console
 
-To deactivate the environment just type
+      pip install virtualenv
 
-.. code::
+2. **Create a Virtual Environment:**
+   .. code-block:: console
 
-  deactivate                                      # deactivate environment
+      virtualenv -p <python-path> <environment-name>
 
+3. **Activate the Virtual Environment:**
+   .. code-block:: console
 
-.. warning:: Ths is slightly different on Windows systems. It is also possible
-   to configure the virtual environment using the python IDE PyCharm. Students
-   can get a free licence.
+      source <environment-name>/bin/activate    # macOS/Linux
 
-
-
-Fork the source repository
---------------------------
-
-Repository: https://github.com/meta00/vital_sqi
-
-Open the previous url and click on the fork button (top right). This creates a new
-copy of the repository under your GitHub user account. The copy includes all the code,
-branches, and commits from the original repo.
-
-
-
-Set up your fork locally
-------------------------
-
-On your computer, open the terminal and create your repository folder:
+To deactivate the environment, simply run:
 
 .. code-block:: console
 
-    $ mkdir vital_sqi
+   deactivate
 
-Move inside the folder:
+.. note::
+   For PyCharm users, you can configure virtual environments directly in the IDE. Students may qualify for a free license.
 
-.. code-block:: console
+---
 
-    $ cd vital_sqi
+Forking the Repository
+----------------------
+1. Navigate to the official repository: `https://github.com/Oucru-Innovations/vital-sqi`.
+2. Click the **Fork** button (top-right corner).
+3. This creates a copy of the repository under your GitHub account, including all branches, commits, and files.
 
-Now, lets clone the repository on your computer. You can clone the whole
-repository using the following command:
+---
 
-.. code-block:: console
+Setting Up Your Fork Locally
+----------------------------
+1. **Clone the Forked Repository:**
+   .. code-block:: console
 
-    $ git clone https://github.com/yourusername/vital_sqi.git
+      git clone https://github.com/<your-username>/vital-sqi.git
+      cd vital-sqi
 
-Or you can clone specific branches as shown below:
+2. **Add the Upstream Remote:**
+   This ensures you can sync your fork with the original repository:
 
-.. code-block:: console
+   .. code-block:: console
 
-    $ git clone -b main https://github.com/yourusername/vital_sqi.git
-    $ mv <repository_name> main
-    $ git clone -b gh-pages https://github.com/yourusername/vital_sqi.gi
-    $ mv <repository_name> gh-pages
+      git remote add upstream https://github.com/Oucru-Innovations/vital-sqi.git
 
-Your repository is now ready!
+3. **Verify Remotes:**
+   .. code-block:: console
 
-The main branch contains all the source files and the gh-pages will be just used
-to host the documentation in html. Brief summary of the contents below:
+      git remote -v
 
-.. code-block:: console
+4. **Optional: Clone Specific Branches:**
+   If you only need certain branches, use:
 
-    gh-pages
-        |- docs
-            - documentation
-    main
-        |- docs
-            |- build
-            |- source
-                |- conf.py    # config - sphinx documentation
-                |- index.rst  # index - sphinx documentation
-            make.bat
-            Makefile          # run to create documentation
-        |- examples
-        |- pkgname            # your library
-            |- core           # contains your pkg core classes
-            |- tests          # contains your pkg tests - pytest
-            |- utils          # contains your pkg utils
+   .. code-block:: console
 
+      git clone -b <branch-name> https://github.com/<your-username>/vital-sqi.git
 
-Installing your pkg in editable mode
-------------------------------------
+---
 
-If you are planning to do any contribution, it is recommended to install the
-package in editable (develop) mode. It puts a link (actually \*.pth files) into
-the python installation to your code, so that your package is installed, but
-any changes will immediately take effect. This way all your can import your
-package the usual way.
+Understanding the Repository Structure
+--------------------------------------
+After cloning the repository, you will see the following structure:
 
-Let's install the requirements. Move to the folder where requirements.txt is
-and install all the required libraries as shown in the statements below. In
-the scenario of missing libraries, just install them using pip.
+.. code-block:: text
 
-.. note:: https://snarky.ca/why-you-should-use-python-m-pip/
+   vital-sqi/
+   ├── docs/                   # Documentation files
+   │   ├── build/              # Generated documentation (html)
+   │   ├── source/             # Sphinx source files
+   │       ├── conf.py         # Sphinx configuration
+   │       └── index.rst       # Documentation index
+   ├── examples/               # Example scripts for users
+   ├── src/                    # Source code for the library
+   │   ├── vital_sqi/          # Main package
+   │   │   ├── core/           # Core classes and algorithms
+   │   │   ├── tests/          # Unit tests
+   │   │   ├── utils/          # Utility functions
+   ├── requirements.txt        # Project dependencies
+   ├── setup.py                # Package installation script
+   └── Makefile                # Build automation script (e.g., for docs)
 
-.. code::
+---
 
-   python -m pip install -r requirements.txt   # Install al the requirements
+Installing the Package in Editable Mode
+---------------------------------------
+Editable mode allows you to test changes to the source code without reinstalling the package.
 
-Move to the directory where the setup.py is. Please note that although ``setup.py`` is
-a python script, it is not recommended to install it executing that file with python
-directly. Instead lets use the package manager pip.
+1. **Install Dependencies:**
+   Navigate to the project root and run:
 
-.. warning:: Feel free to change your package name if you want. However, note that
-   to make things work you will need to make the appropriate changes in existing
-   files: ``setup.cfg`` and ``plot_greetings_01.py``.
+   .. code-block:: console
 
-.. code::
+      python -m pip install -r requirements.txt
 
-  python -m pip install --editable  .         # Install in editable mode
+2. **Install the Package:**
+   .. code-block:: console
 
-Read more about `packages <https://python-packaging-tutorial.readthedocs.io/en/latest/setup_py.html>`_
+      python -m pip install -e .[dev]
 
+---
 
-Generating documentation
-------------------------
+Generating Documentation
+-------------------------
+The documentation is built using **Sphinx**. Follow these steps:
 
-.. note:: To generate autodocs automatically look at sphinx-napoleon and sphinx-autodocs.
-   In general the numpy documentation style is used thorough the code.
+1. **Install Required Libraries:**
+   If not already installed:
 
-Let's use Sphinx to generate the documentation. First, you will need to install sphinx,
-sphinx-gallery, sphinx-std-theme and matplotlib. Note that they might have been already
-installed through the ``requirements.txt``.
+   .. code-block:: console
 
-Let's install the required libraries.
+      python -m pip install sphinx sphinx-gallery sphinx-rtd-theme matplotlib
 
-.. code-block:: console
+2. **Generate HTML Documentation:**
+   Navigate to the `docs` folder and run:
 
-  python -m pip install sphinx            # Install sphinx
-  python -m pip install sphinx-gallery    # Install sphinx-gallery for examples
-  python -m pip install sphinx-std-theme  # Install sphinx-std-theme CSS
-  python -m pip install matplotlib        # Install matplotlib for plot examples
+   .. code-block:: console
 
-Then go to the docs folder within main and run:
+      make html
 
-.. code-block:: console
+3. **Preview Locally:**
+   Open `docs/build/html/index.html` in your browser.
 
-  make html
+4. **Deploy to GitHub Pages:**
+   Use the pre-configured `make github` command:
 
-This will generate the documentation in the docs/build/html folder. In addition,
-when using github pages it is useful to have an instruction to create the html
-with sphinx and then another instruction to copy the generated htmls into the
-gh-pages branch to be available online. As a shortcut, you can use
+   .. code-block:: console
 
-.. code-block:: console
+      make github
 
-  make github
+---
 
-Note that make github is defined within the Makefile and it is equivalent to:
-
-.. code-block:: console
-
-  make clean html
-  cp -a _build/html/. ../../gh-pages/docs
-
-These commands first generate the sphinx documentation in html and then copies
-the html folder into the gh-pages branch. You can see how the documentation
-looks like locally by opening the gh-pages/docs/index.html file. If you move to
-the gh-pages branch and push all the changes the documentation will be also
-available online thanks to GitHub Pages. You can access it through your
-repository page (see Environments / GitHub Pages / Active)
-
-Note that in order to edit the documentation you need to create .rst files and
-include these newly created files in the index.rst document. An example is shown
-in docs/source/tutorials/setup.rst.
-
-In addition, you can create and document python scripts that will be automatically
-included in the documentation (gallery examples) using sphinx-gallery. Remember
-to include the folder(s) containing the scripts in the variable ``sphinx_gallery_conf``
-in the conf.py file as shown below for tutorial.
-
-.. code-block:: console
-    :emphasize-lines: 4, 6
-
-    # Configuration for sphinx_gallery
-    sphinx_gallery_conf = {
-        # path to your example scripts
-        'examples_dirs': ['../../examples/tutorial'],
-        # path to where to save gallery generated output
-        'gallery_dirs': ['../source/_examples/tutorial'],
-        # Other
-        'line_numbers': True,
-        'download_all_examples': False,
-        'within_subsection_order': FileNameSortKey
-    }
-
-Also remember to include the .rst file automatically generated
-the ``docs/index.rst`` file.
-
-.. code-block:: console
-    :emphasize-lines: 6
-
-    .. toctree::
-        :maxdepth: 2
-        :caption: Example Galleries
-        :hidden:
-
-        _examples/tutorial/index
-
-To include the output of the script (e.g. graph or console output) in the documentation
-remember to prefix the script file name with ``plot`` (e.g. plot_sample_01.py). You can
-find the following examples in examples/tutorial:
-
-    - ``plot_greetings_01.py`` script using your pkgname package.
-    - ``plot_sample_01.py`` script just including all the code.
-    - ``plot_sample_02.py`` script documenting steps within the code.
-
-| Read more about `sphinx <https://www.sphinx-doc.org/en/master/>`_
-| Read more about `sphinx-gallery <https://sphinx-gallery.github.io/stable/index.html>`_
-
-
-
-Running tests
+Running Tests
 -------------
+Tests ensure your changes work as expected and do not break existing functionality.
 
-Just go to the main folder and run:
+1. **Install `pytest`:**
+   .. code-block:: console
 
-.. code::
+      python -m pip install pytest
 
-    $ pytest
+2. **Run Tests:**
+   .. code-block:: console
 
-You might need to install it first
+      pytest
 
-.. code::
+---
 
-    $ python -m pip  install pytest
+Submitting Contributions
+------------------------
+1. **Create a Feature Branch:**
+   Use a descriptive branch name:
 
-Read more about `pytest <https://docs.pytest.org/en/stable/>`_
+   .. code-block:: console
 
+      git checkout -b feature/your-feature-name
 
+2. **Make Your Changes:**
+   Update the code, tests, and documentation as needed.
 
-Now it is time to start coding!
--------------------------------
+3. **Run Tests and Build Documentation:**
+   Verify all tests pass and documentation builds without errors.
 
-In order to create a new contribution, please create a new branch
-where name briefly explains the new feature or issue you are
-addressing.
+4. **Commit and Push:**
+   .. code-block:: console
 
+      git add .
+      git commit -m "Add feature: Description of your changes"
+      git push origin feature/your-feature-name
 
-.. code::
+5. **Open a Pull Request:**
+   On GitHub, open a PR from your branch to the `main` branch of the official repository.
 
-  $ git checkout -b new_branch
+---
 
-And create a new remote for the upstream repo with the command:
+Helpful Tips
+------------
+- **Style Guidelines**: Follow `PEP 8` for coding style.
+- **Type Annotations**: Use type hints for all functions.
+- **Docstrings**: Write docstrings in the NumPy format.
+- **Testing**: Write unit tests for any new functionality.
+- **Documentation**: Add or update relevant `.rst` files.
 
-.. code::
-
-  $ git remote add upstream https://github.com/meta00/vital_sqi.git
-
-Pull any new changes to keep your fork up to date:
-
-.. code::
-
-  $ xxx
-
-Do any changes in your branch and create a pull request (link).
-
-.. note:: Complete this section!
-
-Happy coding!
+Happy coding and thank you for contributing to **vital_sqi**!

@@ -20,8 +20,8 @@ class TestGetPPGSQIs:
         sqi_dict = os.path.abspath("tests/test_data/sqi_dict.json")
         rule_dict_filename = os.path.abspath("tests/test_data/rule_dict_test.json")
         ruleset_order = {2: "skewness_1", 1: "perfusion"}
-        # output_dir = tempfile.gettempdir()
-        output_dir = "D:\Workspace\Oucru\\vital_sqi\outdir"
+        output_dir = tempfile.gettempdir()
+        # output_dir = "D:\Workspace\Oucru\\vital_sqi\outdir"
 
         # Call the function under test
         segments, signal_obj = get_ppg_sqis(
@@ -161,8 +161,8 @@ class TestGetECGSQIs:
         sqi_dict = os.path.abspath("tests/test_data/sqi_dict.json")
         rule_dict_filename = os.path.abspath("tests/test_data/rule_dict_test.json")
         ruleset_order = {2: "skewness_1", 1: "perfusion"}
-        # output_dir = tempfile.gettempdir()
-        output_dir = "D:\Workspace\Oucru\\vital_sqi\outdir"
+        output_dir = tempfile.gettempdir()
+        # output_dir = "D:\Workspace\Oucru\\vital_sqi\outdir"
         signal_obj = get_qualified_ecg(
             file_name=file_in,
             file_type="edf",

@@ -301,13 +301,5 @@
   "poincare_sqi": {
     "sqi": "poincare_sqi",
     "args": {}
-  },
-  "hrv_sqi": {
-    "sqi": "hrv_sqi",
-    "args": {
-      "sample_rate": 100,
-      "rpeak_method": 6,
-      "wave_type": "ECG"
-    }
   }
 }

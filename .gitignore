@@ -7,6 +7,9 @@ environment.yml
 
 # -------------------------------------------------
 
+# Example gen by local makefile
+examples/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -48,6 +51,11 @@ pip-delete-this-directory.txt
 
 # ChromeDriver
 chromedriver/
+
+# extra docstrings
+docs/source/extra/.
+docs/source/_examples/tutorials
+docs/source/sg_execution_times.rst
 
 # Unit test / coverage reports
 htmlcov/

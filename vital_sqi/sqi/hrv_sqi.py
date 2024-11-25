@@ -3,13 +3,15 @@
 import numpy as np
 from vital_sqi.common.power_spectrum import calculate_psd
 import warnings
-from hrvanalysis import (
-    get_time_domain_features,
-    get_frequency_domain_features,
-    get_nn_intervals,
-    get_csi_cvi_features,
-    get_geometrical_features,
-)
+from vitalDSP.physiological_features.hrv_analysis import HRVFeatures
+
+# from hrvanalysis import (
+#     get_time_domain_features,
+#     get_frequency_domain_features,
+#     get_nn_intervals,
+#     get_csi_cvi_features,
+#     get_geometrical_features,
+# )
 from vital_sqi.common.rpeak_detection import PeakDetector
 from vital_sqi.common.utils import HiddenPrints
 
@@ -484,29 +486,36 @@ def get_all_features_hrva(signal, sample_rate=100, rpeak_method=6, wave_type="EC
         )
     except Exception as e:
         warnings.warn(f"Error during peak detection: {e}")
-        return {}, {}, {}, {}
+        return {}
 
     if not isinstance(peak_list, (list, np.ndarray)) or len(peak_list) < 2:
         warnings.warn(
             "Peak Detector cannot find sufficient peaks or returned invalid data."
         )
-        return {}, {}, {}, {}
+        return {}
 
     try:
         rr_intervals = np.diff(peak_list) * (1000 / sample_rate)
     except Exception as e:
         warnings.warn(f"Error during RR interval computation: {e}")
-        return {}, {}, {}, {}
+        return {}
 
     try:
-        with HiddenPrints():
-            nn_intervals = get_nn_intervals(rr_intervals)
-            time_features = get_time_domain_features(nn_intervals)
-            freq_features = get_frequency_domain_features(nn_intervals)
-            geometric_features = get_geometrical_features(nn_intervals)
-            csi_cvi_features = get_csi_cvi_features(nn_intervals)
+        hrv = HRVFeatures(rr_intervals, signal, sample_rate)
+        return hrv.compute_all_features()
     except Exception as e:
         warnings.warn(f"Error during HRV feature extraction: {e}")
-        return {}, {}, {}, {}
+        return {}
 
-    return time_features, freq_features, geometric_features, csi_cvi_features
+    # try:
+    #     with HiddenPrints():
+    #         nn_intervals = get_nn_intervals(rr_intervals)
+    #         time_features = get_time_domain_features(nn_intervals)
+    #         freq_features = get_frequency_domain_features(nn_intervals)
+    #         geometric_features = get_geometrical_features(nn_intervals)
+    #         csi_cvi_features = get_csi_cvi_features(nn_intervals)
+    # except Exception as e:
+    #     warnings.warn(f"Error during HRV feature extraction: {e}")
+    #     return {}, {}, {}, {}
+
+    # return time_features, freq_features, geometric_features, csi_cvi_features

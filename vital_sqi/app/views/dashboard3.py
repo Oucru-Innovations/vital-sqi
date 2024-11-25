@@ -171,10 +171,10 @@ def apply_rule_set(n_clicks, rule_set_dict, sqi_table):
 #         )
 #     children = tables
 
+
 #     return children
 @app.callback(
-    Output("confirmed-rule-table", "children"),
-    Input("rule-dataframe", "data")
+    Output("confirmed-rule-table", "children"), Input("rule-dataframe", "data")
 )
 def on_data_set_table(data):
     try:

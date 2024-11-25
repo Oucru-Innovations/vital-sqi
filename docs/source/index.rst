@@ -1,39 +1,44 @@
 Welcome to vital_sqi's documentation!
 =====================================
 
-.. .. image:: ./_static/imgs/vitalsqi-logo.png
+.. image:: ./_static/imgs/logo.png
+   :alt: Vital_SQI logo
 
-.. note:: Include a brief description of the library.
+.. note::
+   Vital_SQI is a Python library designed for analyzing physiological signals (like ECG and PPG) and computing Signal Quality Indices (SQI).
 
-The code of the project is on Github: https://github.com/meta00/vital_sqi
 
+The code of the project is on `GitHub <https://github.com/Oucru-Innovations/vital-sqi>`_.
+
+Getting Started
+---------------
 .. toctree::
    :maxdepth: 2
-   :caption: Getting started
-   :hidden:
 
    usage/installation
    usage/introduction
    usage/contributions
+   usage/development
+   usage/quickstart
 
-
+Data Manipulation
+-----------------
 .. toctree::
    :maxdepth: 2
-   :caption: Data Manipulation:
 
-   _examples/notebooks/index
    _examples/notebooks/Data_manipulation_ECG_PPG
 
+Pipeline
+--------
 .. toctree::
    :maxdepth: 2
-   :caption: Pipeline:
 
-   _examples/notebooks/index
    _examples/notebooks/SQI_pipeline
 
+Documentation
+-------------
 .. toctree::
    :maxdepth: 2
-   :caption: Documentation:
 
    docstring/modules
    docstring/vital_sqi.pipeline

@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vitalsqi_toolkit"
+version = "0.1.2"
+description = "A toolkit for signal quality analysis of ECG and PPG signals"
+readme = "README.md"
+requires-python = ">=3.7"
+authors = [
+    { name = "Khoa Le", email = "khoaldv@oucru.org" },
+    { name = "Hai Ho", email = "haihb@oucru.org" },
+    { name = "Stefan Karolcik", email = "s.karolcik@imperial.ac.uk" },
+    { name = "Heloise Greeff", email = "heloise.greeff@eng.ox.ac.uk" },
+]
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+keywords = ["signal quality", "ECG", "PPG", "toolkit"]
+dependencies = [
+    "vitalDSP",
+    "openpyxl",
+    "pmdarima>=1.8.0",
+    "matplotlib",
+    "numpy>=1.20.2",
+    "pandas>=1.1.5",
+    "plotly>=4.14.3",
+    "scikit-learn>=0.24.1",
+    "scipy>=1.6.0",
+    "statsmodels>=0.12.1",
+    "tqdm>=4.56.0",
+    "pyEDFlib>=0.1.20",
+    "pycwt>=0.3.0a22",
+    "wfdb>=3.3.0",
+    "datetimerange>=1.0.0",
+    "dateparser>=1.0.0",
+    "pyflowchart>=0.1.3",
+]
+
+[project.urls]
+Documentation = "https://pypi.org/project/vitalsqi_toolkit/"
+Source = "https://github.com/Oucru-Innovations/vital-sqi"
+Tracker = "https://github.com/Oucru-Innovations/vital-sqi/issues"
+Homepage = "https://github.com/Oucru-Innovations/vital-sqi"
+
+[project.optional-dependencies]
+testing = [
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "tox",
+    "dash[testing]",
+    "webdriver_manager",
+    "selenium",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vital_sqi*", "vital_sqi.*"]
+
+[tool.setuptools.package-data]
+"vital_sqi" = ["resource/*.json"]

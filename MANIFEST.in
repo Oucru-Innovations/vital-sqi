@@ -1,2 +1,8 @@
 include LICENSE
 include Readme.md
+include vital_sqi/resource/sqi_dict.json
+include vital_sqi/resource/rule_dict.json
+include tests/test_data/sqi_dict.json
+include tests/test_data/rule_dict.json
+include vital_sqi/resource/peak_dectector_list.txt
+include vital_sqi/resource/citations.bib

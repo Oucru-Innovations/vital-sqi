@@ -12,6 +12,7 @@ from vital_sqi.app.app import app
 from vital_sqi.common.utils import update_rule
 from dash.exceptions import PreventUpdate
 
+
 def generate_detail(idx, column_name, data=[]):
     """
     Generate a detailed collapsible card for a specific column.
@@ -54,9 +55,17 @@ def generate_detail(idx, column_name, data=[]):
                             dash_table.DataTable(
                                 id={"type": "rules-table", "index": idx},
                                 columns=[
-                                    {"name": "Operand", "id": "op", "presentation": "dropdown"},
+                                    {
+                                        "name": "Operand",
+                                        "id": "op",
+                                        "presentation": "dropdown",
+                                    },
                                     {"name": "Value", "id": "value", "type": "numeric"},
-                                    {"name": "Label", "id": "label", "presentation": "dropdown"},
+                                    {
+                                        "name": "Label",
+                                        "id": "label",
+                                        "presentation": "dropdown",
+                                    },
                                 ],
                                 data=data,
                                 css=[
@@ -66,14 +75,32 @@ def generate_detail(idx, column_name, data=[]):
                                     }
                                 ],
                                 dropdown={
-                                    "op": {"options": [{"label": i, "value": i} for i in [">", ">=", "=", "<=", "<"]]},
-                                    "label": {"options": [{"label": i, "value": i} for i in ["accept", "reject"]]},
+                                    "op": {
+                                        "options": [
+                                            {"label": i, "value": i}
+                                            for i in [">", ">=", "=", "<=", "<"]
+                                        ]
+                                    },
+                                    "label": {
+                                        "options": [
+                                            {"label": i, "value": i}
+                                            for i in ["accept", "reject"]
+                                        ]
+                                    },
                                 },
                                 editable=True,
                                 row_deletable=True,
                             ),
-                            dbc.Button("Add Row", id={"type": "editing-rows-button", "index": idx}, n_clicks=0),
-                            dbc.Button("Visualize Rule", id={"type": "visualize-rule-button", "index": idx}, n_clicks=0),
+                            dbc.Button(
+                                "Add Row",
+                                id={"type": "editing-rows-button", "index": idx},
+                                n_clicks=0,
+                            ),
+                            dbc.Button(
+                                "Visualize Rule",
+                                id={"type": "visualize-rule-button", "index": idx},
+                                n_clicks=0,
+                            ),
                         ]
                     ),
                     id={"type": "collapse", "index": idx},
@@ -100,6 +127,7 @@ layout = html.Div(
     ]
 )
 
+
 @app.callback(
     Output("rule-dataframe", "data"),
     Input("confirm-rule-button", "n_clicks"),
@@ -108,9 +136,14 @@ layout = html.Div(
     Input({"type": "input-order", "index": ALL}, "value"),
     State({"type": "switch-selection", "index": ALL}, "options"),
 )
-def send_to_rule_set(confirm_click, rule_selection_list, table_components, order_list, column_list):
+def send_to_rule_set(
+    confirm_click, rule_selection_list, table_components, order_list, column_list
+):
     try:
-        if "confirm-rule-button" in [p["prop_id"] for p in dash.callback_context.triggered][0]:
+        if (
+            "confirm-rule-button"
+            in [p["prop_id"] for p in dash.callback_context.triggered][0]
+        ):
             rule_set = []
             for i, value in enumerate(table_components):
                 single_rule = rule_selection_list[i]
@@ -119,7 +152,9 @@ def send_to_rule_set(confirm_click, rule_selection_list, table_components, order
                     rule_name = column_list[i][0]["label"]
                     rule_def = table_components[i]
                     rule_order = rule_order or 1  # Default to 1 if None
-                    rule_set.append({"name": rule_name, "order": rule_order, "def": rule_def})
+                    rule_set.append(
+                        {"name": rule_name, "order": rule_order, "def": rule_def}
+                    )
             if rule_set:
                 generate_rule_set(rule_set)  # Validate the rule set
             return rule_set
@@ -165,14 +200,18 @@ def add_row(n_clicks, rule_set, rows):
 def display_output(n_clicks, rows, columns):
     try:
         fig = go.Figure()
-        fig.update_layout(plot_bgcolor="rgba(0, 0, 0, 0)", paper_bgcolor="rgba(0, 0, 0, 0)")
+        fig.update_layout(
+            plot_bgcolor="rgba(0, 0, 0, 0)", paper_bgcolor="rgba(0, 0, 0, 0)"
+        )
         if n_clicks < 1:
             return fig
         if len(rows) > 0:
             # all_rule, boundaries, interval = [[],[],[]]
             all_rule, boundaries, interval = update_rule([], rows)
         fig = go.Figure()
-        fig.update_layout(plot_bgcolor="rgba(0, 0, 0, 0)", paper_bgcolor="rgba(0, 0, 0, 0)")
+        fig.update_layout(
+            plot_bgcolor="rgba(0, 0, 0, 0)", paper_bgcolor="rgba(0, 0, 0, 0)"
+        )
         x_accept = np.arange(100)[np.r_[:2, 5:40, 60:68, [85, 87, 88]]]
         fig.add_traces(
             go.Scatter(x=x_accept, y=np.zeros(len(x_accept)), line_color="#ffe476")
@@ -180,7 +219,9 @@ def display_output(n_clicks, rows, columns):
 
         x_reject = np.setdiff1d(np.arange(100), x_accept)
         fig.add_traces(
-            go.Scatter(x=x_reject, y=np.zeros(len(x_reject)), line=dict(color="#0000ff"))
+            go.Scatter(
+                x=x_reject, y=np.zeros(len(x_reject)), line=dict(color="#0000ff")
+            )
         )
         return fig
     except Exception as e:

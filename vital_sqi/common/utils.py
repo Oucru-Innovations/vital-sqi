@@ -670,12 +670,12 @@ def check_signal_format(s):
             return None  # or handle accordingly
 
     # Check or create 'timestamp' column
-    if "timestamp" not in s.columns or not np.issubdtype(
-        s["timestamp"].dtype, np.datetime64
+    if "timestamps" not in s.columns or not np.issubdtype(
+        s["timestamps"].dtype, np.datetime64
     ):
-        s.insert(0, "timestamp", pd.to_datetime(pd.Series(range(len(s))), unit="s"))
+        s.insert(0, "timestamps", pd.to_datetime(pd.Series(range(len(s))), unit="s"))
         logging.error(
-            "No valid timestamp column found. Generated 'timestamp' column based on index."
+            "No valid timestamps column found. Generated 'timestamps' column based on index."
         )
 
     # Ensure the second column is numerical

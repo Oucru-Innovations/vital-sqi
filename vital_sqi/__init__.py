@@ -13,4 +13,4 @@ from vital_sqi.data.signal_sqi_class import SignalSQI
 from vital_sqi.data.signal_io import *
 from vital_sqi.pipeline import *
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"

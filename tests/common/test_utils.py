@@ -194,7 +194,7 @@ def test_format_milestone():
 def test_check_signal_format(mock_signal):
     df = check_signal_format(mock_signal)
     assert isinstance(df, pd.DataFrame)
-    assert "timestamp" in df.columns
+    assert "timestamps" in df.columns
 
 
 def test_create_rule_def():

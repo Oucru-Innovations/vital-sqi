@@ -80,8 +80,10 @@ def get_ppg_sqis(
     if info_idx:
         signal_obj.signals = pd.concat([signal_obj.signals, signal_obj.info], axis=1)
 
+    segments_lst, milestones_lst = [], []
+    signals = signal_obj.signals.iloc[:, [1]]
     segments, milestones = split_segment(
-        signal_obj.signals,
+        signals,
         sampling_rate=signal_obj.sampling_rate,
         split_type=split_type,
         duration=duration,
@@ -93,10 +95,20 @@ def get_ppg_sqis(
     if delete_signal:
         signal_obj.signals = pd.DataFrame()
 
+    # signal_obj.sqis = [
+    #     extract_sqi(segments, milestones, sqi_dict_filename, wave_type="PPG")
+    # ]
+    # return segments, signal_obj
+    segments_lst.append(segments)
+    milestones_lst.append(milestones)
+
+    if delete_signal:
+        signal_obj.signals = pd.DataFrame()
     signal_obj.sqis = [
         extract_sqi(segments, milestones, sqi_dict_filename, wave_type="PPG")
+        for segments, milestones in zip(segments_lst, milestones_lst)
     ]
-    return segments, signal_obj
+    return segments_lst, signal_obj
 
 
 def get_qualified_ppg(
@@ -148,7 +160,7 @@ def get_qualified_ppg(
     assert os.path.exists(output_dir), f"Output directory {output_dir} does not exist."
 
     # Step 1: Extract SQIs
-    segments, signal_obj = get_ppg_sqis(
+    segment_lst, signal_obj = get_ppg_sqis(
         file_name,
         signal_idx,
         timestamp_idx,
@@ -183,37 +195,41 @@ def get_qualified_ppg(
             f"The following SQIs in `ruleset_order` are missing from the extracted SQIs: {missing_sqi_keys}"
         )
 
-    # Step 4: Classify SQIs
-    signal_obj.ruleset, signal_obj.sqis = classify_segments(
-        signal_obj.sqis,
-        rule_dict_filename,
-        ruleset_order,
-    )
-
-    # Step 5: Handle predefined reject or generate decisions
-    reject_decision = (
-        get_reject_segments(segments, wave_type="PPG")
-        if predefined_reject
-        else ["accept"] * len(signal_obj.sqis[0])
-    )
-    a_segments, r_segments = get_decision_segments(
-        segments, signal_obj.sqis[0]["decision"].to_list(), reject_decision
-    )
-
-    # Step 6: Save accepted and rejected segments
-    for seg_type, segments_to_save in [("accept", a_segments), ("reject", r_segments)]:
-        seg_dir = os.path.join(output_dir, seg_type)
-        img_dir = os.path.join(seg_dir, "img") if save_image else None
-        os.makedirs(seg_dir, exist_ok=True)
-        if save_image:
-            os.makedirs(img_dir, exist_ok=True)
-        save_segment(
-            segments_to_save,
-            segment_name=segment_name,
-            save_file_folder=seg_dir,
-            save_image=save_image,
-            save_img_folder=img_dir,
+    for i, segments in enumerate(segment_lst):
+        # Step 4: Classify SQIs
+        signal_obj.ruleset, signal_obj.sqis = classify_segments(
+            signal_obj.sqis,
+            rule_dict_filename,
+            ruleset_order,
         )
+
+        # Step 5: Handle predefined reject or generate decisions
+        reject_decision = (
+            get_reject_segments(segments, wave_type="PPG")
+            if predefined_reject
+            else ["accept"] * len(signal_obj.sqis[i])
+        )
+        a_segments, r_segments = get_decision_segments(
+            segments, signal_obj.sqis[0]["decision"].to_list(), reject_decision
+        )
+
+        # Step 6: Save accepted and rejected segments
+        for seg_type, segments_to_save in [
+            ("accept", a_segments),
+            ("reject", r_segments),
+        ]:
+            seg_dir = os.path.join(output_dir, seg_type)
+            img_dir = os.path.join(seg_dir, "img") if save_image else None
+            os.makedirs(seg_dir, exist_ok=True)
+            if save_image:
+                os.makedirs(img_dir, exist_ok=True)
+            save_segment(
+                segments_to_save,
+                segment_name=segment_name,
+                save_file_folder=seg_dir,
+                save_image=save_image,
+                save_img_folder=img_dir,
+            )
 
     return signal_obj
 
@@ -386,8 +402,8 @@ def get_qualified_ecg(
 
 # if __name__ == "__main__":
 #     # Example-based input files and parameters
-#     # file_in = os.path.abspath("tests/test_data/ppg_smartcare.csv")
-#     file_in = os.path.abspath("tests/test_data/example.edf")
+#     file_in = os.path.abspath("tests/test_data/ppg_smartcare.csv")
+#     # file_in = os.path.abspath("tests/test_data/example.edf")
 #     sqi_dict = os.path.abspath("tests/test_data/sqi_dict.json")
 #     rule_dict_filename = os.path.abspath("tests/test_data/rule_dict_test.json")
 #     ruleset_order = {2: "skewness_1", 1: "perfusion"}
@@ -395,28 +411,28 @@ def get_qualified_ecg(
 #     output_dir = "D:\Workspace\Oucru\\vital_sqi\outdir"
 
 #     # Call the function under test
-#     signal_obj = get_qualified_ecg(
-#         file_name=file_in,
-#         sqi_dict_filename=sqi_dict,
-#         # signal_idx=6,
-#         # timestamp_idx=0,
-#         file_type="edf",  # File type explicitly defined as in the example
-#         duration=30,  # Duration parameter passed
-#         rule_dict_filename=rule_dict_filename,
-#         ruleset_order=ruleset_order,
-#         output_dir=output_dir,
-#     )
-
-#     # signal_obj = get_qualified_ppg(
-#     #         file_name=file_in,
-#     #         sqi_dict_filename=sqi_dict,
-#     #         signal_idx=6,
-#     #         timestamp_idx=0,
-#     #         # file_type="edf",  # File type explicitly defined as in the example
-#     #         duration=30,      # Duration parameter passed
-#     #         rule_dict_filename=rule_dict_filename,
-#     #         ruleset_order=ruleset_order,
-#     #         output_dir=output_dir,
+#     # signal_obj = get_qualified_ecg(
+#     #     file_name=file_in,
+#     #     sqi_dict_filename=sqi_dict,
+#     #     # signal_idx=6,
+#     #     # timestamp_idx=0,
+#     #     file_type="edf",  # File type explicitly defined as in the example
+#     #     duration=30,  # Duration parameter passed
+#     #     rule_dict_filename=rule_dict_filename,
+#     #     ruleset_order=ruleset_order,
+#     #     output_dir=output_dir,
 #     # )
+
+#     signal_obj = get_qualified_ppg(
+#             file_name=file_in,
+#             sqi_dict_filename=sqi_dict,
+#             signal_idx=6,
+#             timestamp_idx=0,
+#             # file_type="edf",  # File type explicitly defined as in the example
+#             duration=30,      # Duration parameter passed
+#             rule_dict_filename=rule_dict_filename,
+#             ruleset_order=ruleset_order,
+#             output_dir=output_dir,
+#     )
 
 #     print(signal_obj.signals[0:100])

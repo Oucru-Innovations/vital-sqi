@@ -196,23 +196,17 @@ class TestHRVSQIs:
         sample_rate = 100
 
         # Valid case
-        time_features, freq_features, geometric_features, csi_cvi_features = (
+        features = (
             get_all_features_hrva(signal, sample_rate=sample_rate)
         )
-        assert isinstance(time_features, dict)
-        assert isinstance(freq_features, dict)
-        assert isinstance(geometric_features, dict)
-        assert isinstance(csi_cvi_features, dict)
+        assert isinstance(features, dict)
 
         # Edge case: Invalid peak detection
         invalid_signal = [0] * 1000  # Flat signal, no peaks
-        time_features, freq_features, geometric_features, csi_cvi_features = (
+        features = (
             get_all_features_hrva(invalid_signal, sample_rate=sample_rate)
         )
-        assert time_features == {}
-        assert freq_features == {}
-        assert geometric_features == {}
-        assert csi_cvi_features == {}
+        assert features == {}
 
         # Edge case: Invalid wave type
         with pytest.raises(

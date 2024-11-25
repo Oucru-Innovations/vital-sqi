@@ -12,17 +12,15 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../vital_sqi/'))
+sys.path.insert(0, os.path.abspath("../../"))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../vital_sqi/')))
+# sys.path.insert(0, os.path.abspath('../../vital_sqi/'))
 
 # -- Project information -----------------------------------------------------
 
 project = 'vital_sqi'
 copyright = '2022, Oucru'
 author = 'Oucru'
-
-# The full version, including alpha/beta/rc tags
-release = '1.0.0'
-
 
 # -- General configuration ---------------------------------------------------
 
@@ -104,30 +102,33 @@ pio.renderers.default = 'sphinx_gallery'
 # Import library
 from sphinx_gallery.sorting import FileNameSortKey
 
-html_extra_path = ["extra"]
+# html_extra_path = ["extra"]
 
 # Configuration for sphinx_gallery
+BASE_DIR = '../source/_examples'
 sphinx_gallery_conf = {
     # path to your example scripts
     'examples_dirs': [
-        '../../examples/tutorials',
-        '../../examples/preprocess',
-        '../../examples/sqi',
+        # '../../examples/tutorials',
+        # '../../examples/preprocess',
+        # '../../examples/sqi',
         '../../examples/notebooks'
     ],
     # path to save gallery generated output
     'gallery_dirs': [
-        '../source/_examples/tutorials',
-        '../source/_examples/preprocess',
-        '../source/_examples/sqi',
-        '../source/_examples/notebooks'
+        # os.path.join(BASE_DIR, 'tutorials'),
+        # os.path.join(BASE_DIR, 'preprocess'),
+        # os.path.join(BASE_DIR, 'sqi'),
+        os.path.join(BASE_DIR, 'notebooks')
     ],
+    'filename_pattern': r'\.py$',        # Match Python files
     # Other
     'pypandoc': True,
     'line_numbers': True,
     'download_all_examples': False,
     'within_subsection_order': FileNameSortKey
 }
+autodoc_mock_imports = ["dash_bootstrap_components"]
 
 # autodoc_mock_imports = ["librosa"]
 from unittest.mock import MagicMock
@@ -143,5 +144,7 @@ class Mock(MagicMock):
 MOCK_MODULES = [
     # 'librosa', 'librosa.display', 
     'plotly',
-    'setuptools', 'jupyter', 'pandas']
+    # 'setuptools', 
+    'jupyter', 
+    'pandas']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)

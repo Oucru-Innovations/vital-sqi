@@ -45,7 +45,9 @@ def on_data_set_table(data):
 
         # Compute summary row with means for numeric columns
         summary_row = df.mean(numeric_only=True).to_dict()
-        summary_row.update({col: "Summary" for col in df.columns if col not in summary_row})
+        summary_row.update(
+            {col: "Summary" for col in df.columns if col not in summary_row}
+        )
         df_summary = pd.DataFrame([summary_row])
 
         # Concatenate the original DataFrame with the summary row
@@ -54,7 +56,10 @@ def on_data_set_table(data):
         # Define DataTable for Display
         table = dash_table.DataTable(
             id="editing-columns",
-            columns=[{"name": col, "id": col, "deletable": True} for col in df_combined.columns],
+            columns=[
+                {"name": col, "id": col, "deletable": True}
+                for col in df_combined.columns
+            ],
             data=df_combined.to_dict("records"),
             style_table={"overflowX": "auto"},
             editable=True,

@@ -289,9 +289,10 @@ def PPG_reader(
         signal_data = tmp.iloc[:, 1 : 1 + len(signal_idx)]
         additional_info = tmp.iloc[:, 1 + len(signal_idx) :]
 
+        signal_df = pd.concat([timestamps, signal_data, additional_info], axis=1)
         # Return a SignalSQI object (or similar custom object)
         return SignalSQI(
-            signals=signal_data,
+            signals=signal_df,
             wave_type="PPG",
             # timestamps=timestamps,
             info=additional_info,
@@ -336,8 +337,14 @@ def PPG_writer(signal_sqi, file_name, file_type="csv"):
             sampling_rate=signal_sqi.sampling_rate,
             signal_length=len(signal_sqi.signals),
         )
+        # signals = pd.DataFrame(
+        #     {"time": timestamps, "pleth": np.array(signal_sqi.signals).reshape(-1)}
+        # )
         signals = pd.DataFrame(
-            {"time": timestamps, "pleth": np.array(signal_sqi.signals).reshape(-1)}
+            {
+                "time": np.array(signal_sqi.signals.iloc[:, 0]),
+                "pleth": np.array(signal_sqi.signals.iloc[:, 1]),
+            }
         )
 
         if file_type == "csv":

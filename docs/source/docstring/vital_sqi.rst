@@ -13,6 +13,7 @@ Subpackages
    vital_sqi.dataset
    vital_sqi.pipeline
    vital_sqi.preprocess
+   vital_sqi.resource
    vital_sqi.rule
    vital_sqi.sqi
 

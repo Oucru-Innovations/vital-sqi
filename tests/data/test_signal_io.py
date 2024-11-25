@@ -140,7 +140,7 @@ class TestPPGWriter(object):
         file_in = os.path.abspath("tests/test_data/ppg_smartcare.csv")
         out = PPG_reader(
             file_in,
-            signal_idx=1,
+            signal_idx=6,
             timestamp_idx=0,
             # info_idx=[3, 4, 5],
             sampling_rate=100,

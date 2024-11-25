@@ -48,12 +48,12 @@ doc-style: ## convert documentation style to numpy style
 	pyment -o numpydoc -w $(filename)
 
 test: ## run tests with coverage report
-	pytest --cov=vital_sqi --cov-report term tests/
+	pytest --cov=vital_sqi --cov-config=.coveragerc --cov-report term tests/
 
 BROWSER ?= firefox
 
 cov: ## Run tests and show coverage report by file in the terminal
-	pytest --cov=vital_sqi --browser=$(BROWSER) tests/ 
+	pytest --cov=vital_sqi --cov-config=.coveragerc --browser=$(BROWSER) tests/ 
 	coverage report -m
 
 test-all: ## run tests on every Python version with tox

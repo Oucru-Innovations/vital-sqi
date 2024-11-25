@@ -2,10 +2,11 @@
 vital_sqi.sqi
 ==============
 A subpackage for signal quality index calculation, including:
-	- Standard: Statistical domain and xx
-	- Dynamic template maching based
-	- Peak detection based
-    - Heart rate variability based
+- Standard: Statistical domain
+- Dynamic template maching based
+- Peak detection based
+- Heart rate variability based
+
 """
 
 from vital_sqi.sqi.dtw_sqi import dtw_sqi
@@ -104,5 +105,4 @@ sqi_mapping = {
     ),
     "lf_hf_ratio_sqi": lf_hf_ratio_sqi,
     "poincare_sqi": poincare_features_sqi,
-    "hrv_sqi": get_all_features_hrva,
 }

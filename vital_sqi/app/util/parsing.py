@@ -27,7 +27,9 @@ def parse_data(contents, filename):
         elif filename.endswith(".xls") or filename.endswith(".xlsx"):
             return pd.read_excel(io.BytesIO(decoded)).to_dict()
         elif filename.endswith(".txt"):
-            return pd.read_csv(io.StringIO(decoded.decode("utf-8")), delimiter=r"\s+").to_dict()
+            return pd.read_csv(
+                io.StringIO(decoded.decode("utf-8")), delimiter=r"\s+"
+            ).to_dict()
         elif filename.endswith(".json"):
             return json.load(io.StringIO(decoded.decode("utf-8")))
         else:
@@ -74,7 +76,9 @@ def parse_rule_list(rule_def):
     Parse a rule definition into a list of dictionaries.
     """
     try:
-        return [{"op": r["op"], "value": r["value"], "label": r["label"]} for r in rule_def]
+        return [
+            {"op": r["op"], "value": r["value"], "label": r["label"]} for r in rule_def
+        ]
     except Exception as e:
         print(f"Error parsing rule list: {e}")
         return []
