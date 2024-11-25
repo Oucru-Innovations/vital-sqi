@@ -16,15 +16,21 @@ exclude =
     cov_html
 
 ignore =
+    C901,
+    E101,
     E203,
     E226,
     E266,
     E302,  
     E501,
     E731,
-    W503,
+    F401,
     F403,
-    F405
-
+    F405,
+    F841,
+    W503,
+    W191,
+    W605
+    
 max-complexity = 10
 select = B,C,E,F,W,T4

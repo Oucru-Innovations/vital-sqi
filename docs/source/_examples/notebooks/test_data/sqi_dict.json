@@ -51,14 +51,6 @@
       "per_beat": false
     }
   },
-  "entropy_2": {
-    "sqi": "entropy_sqi",
-    "args": {
-      "qk": null,
-      "base": null,
-      "per_beat": false
-    }
-  },
   "signal_to_noise": {
     "sqi": "signal_to_noise_sqi",
     "args": {
@@ -91,8 +83,8 @@
     "args": {
       "rule_index": 0,
       "sample_rate": 100,
-      "rpeak_detector": 0,
-      "wave_type": "ppg",
+      "rpeak_detector": 6,
+      "wave_type": "PPG",
       "low_rri": 300,
       "high_rri": 2000
     }
@@ -115,7 +107,7 @@
     "args": {
       "peak_detector_1": 7,
       "peak_detector_2": 6,
-      "wave_type": "ppg"
+      "wave_type": "PPG"
     }
   },
   "band_energy": {
@@ -307,8 +299,8 @@
     "sqi": "hrv_sqi",
     "args": {
       "sample_rate": 100,
-      "rpeak_method": 0,
-      "wave_type": "ecg"
+      "rpeak_method": 6,
+      "wave_type": "ECG"
     }
   }
 }

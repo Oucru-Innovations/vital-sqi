@@ -1,5 +1,4 @@
 import os
-
 import pandas as pd
 import dash
 import dash_table
@@ -10,38 +9,21 @@ from dash.dependencies import Input, Output, State
 from vital_sqi.app.app import app
 from dash.exceptions import PreventUpdate
 from vital_sqi.app.util.parsing import generate_rule_set, generate_boundaries
-import pathlib
 
 layout = html.Div(
     [
-        # html.Div([
-        #     dcc.Input(
-        #         id='editing-columns-name',
-        #         placeholder='Enter a column name...',
-        #         value='',
-        #         style={'padding': 10}
-        #     ),
-        #     html.Button('Add Column', id='editing-columns-button', n_clicks=0)
-        # ], style={'height': 50}),
         html.Div(id="confirmed-rule-table"),
         html.Div(id="export-message"),
         dbc.Button(
             "Export",
-            # color="link",
             color="primary",
             id="export-button",
             style={"display": "inline-block"},
         ),
         dcc.Download(id="download-content"),
         dcc.Download(id="download-decision-dataframe"),
-        # dbc.Button(
-        #         'Save',
-        #         id='save-decision-button',
-        #         color="primary"
-        #     ),
         dbc.Button(
             "Apply",
-            # color="link",
             color="success",
             id="apply-button",
             style={"display": "inline-block"},
@@ -148,45 +130,84 @@ def apply_rule_set(n_clicks, rule_set_dict, sqi_table):
 #     return None
 
 
+# @app.callback(
+#     Output("confirmed-rule-table", "children"), Input("rule-dataframe", "data")
+# )
+# def on_data_set_table(data):
+#     if data is None:
+#         raise PreventUpdate
+
+#     rule_set = generate_rule_set(data)
+
+#     tables = []
+#     for rule_order in rule_set.rules:
+#         rule_name = rule_set.rules[rule_order].name
+#         rule_content = rule_set.rules[rule_order].rule
+#         boundaries = generate_boundaries(rule_content["boundaries"])
+#         labels = rule_content["labels"]
+#         print(boundaries)
+
+#         table_header = [
+#             html.Thead(
+#                 html.Tr([html.Th("Range")] + [html.Th(bound) for bound in boundaries])
+#             )
+#         ]
+
+#         label_row = html.Tr(
+#             [html.Td("Decision")] + [html.Td(label_detail) for label_detail in labels]
+#         )
+
+#         table_body = [html.Tbody([label_row])]
+
+#         tables.append(
+#             dbc.Table(
+#                 table_header + table_body,
+#                 bordered=True,
+#                 dark=True,
+#                 hover=True,
+#                 responsive=True,
+#                 striped=True,
+#             )
+#         )
+#     children = tables
+
+#     return children
 @app.callback(
-    Output("confirmed-rule-table", "children"), Input("rule-dataframe", "data")
+    Output("confirmed-rule-table", "children"),
+    Input("rule-dataframe", "data")
 )
 def on_data_set_table(data):
-    if data is None:
-        raise PreventUpdate
+    try:
+        if not data:
+            raise PreventUpdate
 
-    rule_set = generate_rule_set(data)
+        rule_set = generate_rule_set(data)
+        if not rule_set:
+            return html.Div("Error generating rules.")
 
-    tables = []
-    for rule_order in rule_set.rules:
-        rule_name = rule_set.rules[rule_order].name
-        rule_content = rule_set.rules[rule_order].rule
-        boundaries = generate_boundaries(rule_content["boundaries"])
-        labels = rule_content["labels"]
-        print(boundaries)
+        # Generate rule table
+        tables = []
+        for rule_order, rule_obj in rule_set.rules.items():
+            boundaries = generate_boundaries(rule_obj.rule["boundaries"])
+            labels = rule_obj.rule["labels"]
 
-        table_header = [
-            html.Thead(
+            table_header = html.Thead(
                 html.Tr([html.Th("Range")] + [html.Th(bound) for bound in boundaries])
             )
-        ]
-
-        label_row = html.Tr(
-            [html.Td("Decision")] + [html.Td(label_detail) for label_detail in labels]
-        )
-
-        table_body = [html.Tbody([label_row])]
-
-        tables.append(
-            dbc.Table(
-                table_header + table_body,
-                bordered=True,
-                dark=True,
-                hover=True,
-                responsive=True,
-                striped=True,
+            table_body = html.Tbody(
+                [html.Tr([html.Td("Decision")] + [html.Td(label) for label in labels])]
             )
-        )
-    children = tables
 
-    return children
+            tables.append(
+                dbc.Table(
+                    table_header + table_body,
+                    bordered=True,
+                    striped=True,
+                    responsive=True,
+                )
+            )
+        return tables
+
+    except Exception as e:
+        print(f"Error in on_data_set_table: {e}")
+        return html.Div("Error displaying rule table.")

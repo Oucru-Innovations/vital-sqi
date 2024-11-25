@@ -46,6 +46,9 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# ChromeDriver
+chromedriver/
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -69,6 +72,9 @@ coverage.xml
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+
+# output directory
+outdir/
 
 # Flask stuff:
 instance/

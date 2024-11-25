@@ -1,6 +1,6 @@
 {
 "test_sqi": {
-  "name": "test_sqi",
+  "name": "perfusion_sqi",
   "def": [
       {"op": ">", "value": "10", "label": "reject"},
       {"op": ">=", "value": "3", "label": "accept"},
@@ -9,11 +9,11 @@
   "ref": ""
   },
 "abc_sqi": {
-   "name": "abc_sqi",
-   "def": [
+    "name": "mean_cross_sqi",
+    "def": [
       {"op": ">", "value": "0", "label": "accept"},
       {"op": "<=", "value": "0", "label": "reject"}],
-   "desc": "",
-   "ref": ""
+    "desc": "",
+    "ref": ""
   }
 }

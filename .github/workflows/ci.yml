@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8]
+        python-version: [3.7, 3.8, 3.9, 3.10, 3.11]
 
     env:
       COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
@@ -33,14 +33,27 @@ jobs:
           pip install --upgrade setuptools importlib-metadata
           pip install -e .
 
-      - name: Install Chrome
+      - name: Install Chrome and dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y google-chrome-stable libnss3
+          sudo apt-get install -y google-chrome-stable libnss3 xvfb
           
+      # - name: Install Chromedriver
+      #   run: |
+      #     wget http://chromedriver.storage.googleapis.com/106.0.5249.61/chromedriver_linux64.zip
+      #     unzip chromedriver_linux64.zip
+      #     sudo mv chromedriver /usr/local/bin/chromedriver
+      #     sudo chmod +x /usr/local/bin/chromedriver
+      
+      # - name: Install Chromedriver using webdriver-manager
+      #   run: |
+      #     pip install webdriver-manager
+      #     python -c "from webdriver_manager.chrome import ChromeDriverManager; print(ChromeDriverManager().install())"
       - name: Install Chromedriver
         run: |
-          wget http://chromedriver.storage.googleapis.com/106.0.5249.61/chromedriver_linux64.zip
+          CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1)
+          wget https://chromedriver.storage.googleapis.com/${CHROME_VERSION}.0.5249.61/chromedriver_linux64.zip || true
+          wget https://chromedriver.storage.googleapis.com/${CHROME_VERSION}.0/chromedriver_linux64.zip
           unzip chromedriver_linux64.zip
           sudo mv chromedriver /usr/local/bin/chromedriver
           sudo chmod +x /usr/local/bin/chromedriver
@@ -50,7 +63,7 @@ jobs:
           DISPLAY: :99.0
         run: |
           Xvfb :99 & sleep 3
-          pytest --cov=vital_sqi tests
+          pytest --cov=vital_sqi --cov-report=xml --cov-report=term-missing tests
             
       - name: Upload to Coveralls
         uses: coverallsapp/github-action@v2.3.4

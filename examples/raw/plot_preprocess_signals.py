@@ -31,7 +31,7 @@ ecg_data.info
 ### List all of the attributes in Signal_SQI object
 #1. signals: a numpy array contains the raw amplitude values of the devices
 #2. sampling_rate: the sampling rate derives from the signal data
-#3. wave_type: the types of signal. Only 2 types are accepted: either 'ecg' or 'ppg'
+#3. wave_type: the types of signal. Only 2 types are accepted: either 'ECG' or 'PPG'
 #4. sqi_indexes: a list of sqi_indexes
 
 #%%

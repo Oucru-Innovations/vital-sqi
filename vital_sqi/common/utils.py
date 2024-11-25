@@ -1,17 +1,33 @@
 import numpy as np
-import os, sys
+import os
+import sys
 import datetime as dt
 import json
 import pandas as pd
 from pandas.core.dtypes.common import is_number
 from vital_sqi.common.rpeak_detection import PeakDetector
-from hrvanalysis import get_nn_intervals
 import dateparser
+import logging
+from vitalDSP.transforms.beats_transformation import RRTransformation
+
+# Set up logging configuration
+logging.basicConfig(
+    level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 OPERAND_MAPPING_DICT = {">": 5, ">=": 4, "=": 3, "<=": 2, "<": 1}
 
 
 class HiddenPrints:
+    """
+    Context manager to suppress console output temporarily.
+
+    Usage:
+    ------
+    with HiddenPrints():
+        # Code that prints to console
+    """
+
     def __enter__(self):
         self._original_stdout = sys.stdout
         sys.stdout = open(os.devnull, "w")
@@ -22,141 +38,173 @@ class HiddenPrints:
 
 
 def get_nn(
-    s, wave_type="ppg", sample_rate=100, rpeak_method=7, remove_ectopic_beat=False
+    signal, wave_type="PPG", sample_rate=100, rpeak_method=6, remove_ectopic_beat=False
 ):
-
-    if wave_type == "ppg":
-        detector = PeakDetector(wave_type="ppg")
-        peak_list, trough_list = detector.ppg_detector(s, detector_type=rpeak_method)
-    else:
-        detector = PeakDetector(wave_type="ecg")
-        peak_list, trough_list = detector.ecg_detector(s, detector_type=rpeak_method)
-
-    rr_list = np.diff(peak_list) * (1000 / sample_rate)
-    if not remove_ectopic_beat:
-        return rr_list
-    nn_list = get_nn_intervals(rr_list)
-    nn_list_non_na = np.copy(nn_list)
-    nn_list_non_na[np.where(np.isnan(nn_list_non_na))[0]] = -1
-    return nn_list_non_na
-
-
-def check_valid_signal(x):
-    """Check whether signal is valid, i.e. an array_like numeric, or raise errors.
+    """
+    Calculate NN intervals from a PPG or ECG signal.
 
     Parameters
     ----------
-    x :
-        array_like, array of signal
+    signal : array_like
+        Input signal data.
+    wave_type : str, optional
+        Type of waveform ('PPG' or 'ECG'), by default 'PPG'.
+    sample_rate : int or float, optional
+        Sampling frequency in Hz, by default 100.
+    rpeak_method : int, optional
+        Method identifier for R-peak detection, by default 7.
+    remove_ectopic_beat : bool, optional
+        If True, removes ectopic beats, by default False.
 
     Returns
     -------
-
-
+    np.ndarray
+        Array of NN intervals in milliseconds.
     """
-    if isinstance(x, dict) or isinstance(x, tuple):
-        raise ValueError(
-            "Expected array_like input, instead found {" "0}:".format(type(x))
+    try:
+        transformer = RRTransformation(
+            signal=signal, fs=sample_rate, signal_type=wave_type
         )
-    if len(x) == 0:
-        raise ValueError("Empty signal")
-    types = [str(type(xi)) for idx, xi in enumerate(x)]
-    type_unique = np.unique(np.array(types))
-    if len(type_unique) != 1 and (
-        type_unique[0].find("int") != -1 or type_unique[0].find("float") != -1
-    ):
-        raise ValueError(
-            "Invalid signal: Expect numeric array, instead found "
-            "array with types {0}: ".format(type_unique)
+        rr_intervals = transformer.process_rr_intervals(
+            impute_invalid=False, remove_invalid=remove_ectopic_beat
         )
-    if type_unique[0].find("int") == -1 and type_unique[0].find("float") == -1:
-        raise ValueError(
-            "Invalid signal: Expect numeric array, instead found "
-            "array with types {0}: ".format(type_unique)
-        )
+        nn_intervals_non_na = np.where(np.isnan(rr_intervals), -1, rr_intervals)
+        return nn_intervals_non_na
+    except Exception as e:
+        logging.error(f"Error in get_nn function: {e}")
+        return np.array([])
+
+
+def check_valid_signal(signal):
+    """
+    Validates that the input is a numeric array-like signal.
+
+    Parameters
+    ----------
+    signal : array_like
+        The signal to validate.
+
+    Returns
+    -------
+    bool
+        True if the signal is valid.
+
+    Raises
+    ------
+    ValueError
+        If the signal is invalid.
+    """
+    if not isinstance(signal, (list, np.ndarray, pd.Series)):
+        raise ValueError(f"Expected array-like input, found {type(signal)}.")
+
+    if len(signal) == 0:
+        raise ValueError("Empty signal provided.")
+
+    signal_array = np.asarray(signal)
+
+    if len(signal_array.shape) > 1:
+        raise ValueError("Signal must be one-dimensional.")
+
+    if not np.issubdtype(signal_array.dtype, np.number):
+        raise ValueError("Signal contains non-numeric data.")
+
     return True
 
 
 def calculate_sampling_rate(timestamps):
     """
+    Calculates the sampling rate from an array of timestamps.
 
     Parameters
     ----------
-    x : array_like of timestamps, float (unit second)
+    timestamps : array_like
+        Array of timestamps (float, pd.Timestamp, or np.datetime64).
 
     Returns
     -------
-    float : sampling rate
+    float or None
+        The calculated sampling rate in Hz, or None if calculation fails.
     """
-    if isinstance(timestamps[0], float):
-        timestamps_second = timestamps
-    elif isinstance(timestamps[0], pd.Timestamp):
-        timestamps_second = timestamps - np.array([timestamps[0]] * len(timestamps))
-    elif isinstance(timestamps[0], np.datetime64):
-        timestamps_second = (
-            timestamps - np.array([timestamps[0]] * len(timestamps))
-        ) / np.timedelta64(1, "s")
-    else:
-        try:
-            v_parse_datetime = np.vectorize(parse_datetime)
-            timestamps_second = v_parse_datetime(timestamps)
-            # timestamps_second = [0]
-            # timestamps_second = timestamps_second + list(np.diff(timestamps))
-        except Exception:
-            sampling_rate = None
-            return sampling_rate
-    steps = np.diff(timestamps_second)
-    min_step = np.min(steps[steps != 0])
-    if not isinstance(min_step, dt.timedelta):
-        min_step = dt.timedelta(seconds=min_step)
-    # sampling_rate = round(1 / pd.Timedelta.total_seconds(min_step), 3)
-    sampling_rate = round(1 / min_step.total_seconds(), 3)
-    return sampling_rate
+    try:
+        if len(timestamps) < 2:
+            logging.error("Not enough timestamps to calculate sampling rate.")
+            return None
+
+        # Convert timestamps to seconds
+        if isinstance(timestamps[0], (float, int)):
+            timestamps_seconds = np.array(timestamps)
+        elif isinstance(timestamps[0], pd.Timestamp):
+            timestamps_seconds = (timestamps - timestamps[0]).total_seconds()
+        elif isinstance(timestamps[0], np.datetime64):
+            timestamps_seconds = (timestamps - timestamps[0]) / np.timedelta64(1, "s")
+        else:
+            # Attempt to parse timestamps using dateparser
+            timestamps_parsed = [dateparser.parse(str(ts)) for ts in timestamps]
+            if None in timestamps_parsed:
+                logging.error("Failed to parse some timestamps.")
+                return None
+            timestamps_seconds = np.array(
+                [
+                    (ts - timestamps_parsed[0]).total_seconds()
+                    for ts in timestamps_parsed
+                ]
+            )
+
+        # Calculate time differences
+        time_diffs = np.diff(timestamps_seconds)
+        time_diffs = time_diffs[time_diffs > 0]  # Exclude zero or negative differences
+
+        if len(time_diffs) == 0:
+            logging.error("No positive time differences found.")
+            return None
+
+        min_step = np.min(time_diffs)
+        sampling_rate = round(1 / min_step, 3)
+        return sampling_rate
+    except Exception as e:
+        logging.error(f"Error calculating sampling rate: {e}")
+        return None
 
 
 def generate_timestamp(start_datetime, sampling_rate, signal_length):
     """
+    Generates a sequence of timestamps for a signal.
 
     Parameters
     ----------
-    start_datetime :
-
-    sampling_rate : float or int
-
+    start_datetime : datetime.datetime or pd.Timestamp or None
+        The starting timestamp. If None, uses current time.
+    sampling_rate : float
+        The sampling rate in Hz.
     signal_length : int
-
+        The number of timestamps to generate.
 
     Returns
     -------
-    list : list of timestamps with length equal to signal_length.
-    """
-    assert np.isreal(sampling_rate), (
-        "Sampling rate is expected to be a int " "or float."
-    )
-    # number_of_seconds = signal_length / sampling_rate
-    if start_datetime is None:
-        start_datetime = dt.datetime.now()
+    np.ndarray
+        Array of pd.Timestamp objects.
 
-    step_size = 1 / sampling_rate
-    # if type(start_datetime) is pd.Timestamp:
-    #     timestamps = np.arange(0, signal_length) * step_size + (start_datetime.timestamp())
-    # else:
-    #     timestamps = np.arange(0, signal_length) * step_size + dt.datetime.timestamp(start_datetime)
-    timestamps = np.arange(0, signal_length) * step_size + (start_datetime.timestamp())
-    timestamps = np.array(list(map(lambda x: pd.Timestamp(x, unit="s"), timestamps)))
-    # timestamps = (np.vectorize(lambda x: pd.Timedelta(x, unit='seconds')))\
-    #     (np.arange(0, signal_length) * step_size + dt.datetime.timestamp(start_datetime))
-    # timestamps = []
-    # try:
-    #     timestamps.append(dt.datetime.timestamp(start_datetime))
-    # except Exception as e:
-    #     print(e)
-    # for value in range(1, signal_length):
-    #         timestamps.append(timestamps[value-1] + 1 /
-    #                                        sampling_rate)
-    # for x in range(0, len(timestamps)):
-    #     timestamps[x] = pd.Timestamp(timestamps[x], unit = 's')
-    return timestamps
+    Raises
+    ------
+    ValueError
+        If sampling_rate is not a real number.
+    """
+    if not isinstance(sampling_rate, (int, float)) or not np.isreal(sampling_rate):
+        raise ValueError("Sampling rate must be a real number.")
+
+    if start_datetime is None:
+        start_datetime = pd.Timestamp.now()
+    elif not isinstance(start_datetime, pd.Timestamp):
+        start_datetime = pd.Timestamp(start_datetime)
+
+    try:
+        step_size = 1 / sampling_rate
+        time_offsets = np.arange(signal_length) * step_size
+        timestamps = start_datetime + pd.to_timedelta(time_offsets, unit="s")
+        return timestamps
+    except Exception as e:
+        logging.error(f"Error generating timestamps: {e}")
+        return np.array([])
 
 
 def parse_datetime(string, type="datetime"):
@@ -207,145 +255,280 @@ def parse_datetime(string, type="datetime"):
     for i, f in enumerate(formats):
         try:
             return dt.datetime.strptime(string, f)
-        except:
+        except Exception as e:
+            logging.exception(f"Error parsing date format: {e}")
             pass
     try:
         return dateparser.parse(string)
-    except:
+    except Exception as e:
         raise ValueError(
-            "Datetime string must be of standard Python format "
+            f"{e} Datetime string must be of standard Python format "
             "(https://docs.python.org/3/library/time.html), "
             "e.g., `%d-%m-%Y`, eg. `24-01-2020`"
         )
 
 
 def parse_rule(name, source):
-    assert os.path.isfile(source) is True, "Source file not found"
-    with open(source) as json_file:
-        all = json.load(json_file)
-        try:
-            sqi = all[name]
-        except:
-            raise Exception("SQI {0} not found".format(name))
-        rule_def, boundaries, label_list = update_rule(sqi["def"], is_update=False)
-    return rule_def, boundaries, label_list
+    """
+    Parses rule definitions from a JSON file or dictionary.
 
+    Parameters
+    ----------
+    name : str
+        Name of the SQI to retrieve.
+    source : str or dict
+        Path to the JSON file or dictionary containing rule definitions.
 
-def update_rule(rule_def, threshold_list=[], is_update=True):
-    if rule_def is None or is_update:
-        all_rules = []
+    Returns
+    -------
+    tuple
+        A tuple containing rule definitions, boundaries, and label lists.
+    """
+    # If source is a dictionary, use it directly; otherwise, treat it as a file path
+    if isinstance(source, dict):
+        all_rules = source
     else:
-        all_rules = list(np.copy(rule_def))
-    for i, threshold in enumerate(threshold_list):
-        all_rules.append(threshold)
-    df = sort_rule(all_rules)
-    df = decompose_operand(df.to_dict("records"))
-    boundaries = np.sort(df["value"].unique())
-    inteveral_label_list = get_inteveral_label_list(df, boundaries)
-    value_label_list = get_value_label_list(df, boundaries, inteveral_label_list)
+        assert os.path.isfile(source), "Source file not found."
+        with open(source, "r") as json_file:
+            try:
+                all_rules = json.load(json_file)
+            except json.JSONDecodeError as e:
+                logging.error(f"Error decoding JSON file: {e}")
+                raise
 
-    label_list = []
-    for i, va in enumerate(np.arange(len(value_label_list))):
-        label_list.append(inteveral_label_list[i])
-        label_list.append(value_label_list[i])
-    label_list.append(inteveral_label_list[-1])
+    try:
+        sqi = all_rules[name]
+    except KeyError:
+        logging.error(f"SQI {name} not found in the source.")
+        raise ValueError(f"SQI {name} not found.")
+
+    return update_rule(sqi["def"], is_update=False)
+
+
+def generate_labels(df, boundaries):
+    """
+    Efficiently generates interval and value labels for the boundaries.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame of decomposed rule definitions.
+    boundaries : np.ndarray
+        Unique sorted boundary values.
+
+    Returns
+    -------
+    tuple of np.ndarray
+        Interval and value labels for the boundaries.
+    """
+    interval_labels = np.full(len(boundaries) + 1, None, dtype=object)
+    value_labels = np.empty(len(boundaries), dtype=object)
+
+    # Set initial and final interval labels
+    interval_labels[0], interval_labels[-1] = df.iloc[0]["label"], df.iloc[-1]["label"]
+
+    for idx, boundary in enumerate(boundaries[:-1]):
+        decision = get_decision(df, boundaries, idx)
+        interval_labels[idx + 1] = decision
+
+    for idx, boundary in enumerate(boundaries):
+        decision = df[(df["value"] == boundary) & (df["op"] == "=")]
+        value_labels[idx] = (
+            decision.iloc[0]["label"]
+            if not decision.empty
+            else interval_labels[idx + 1]
+        )
+
+    return interval_labels, value_labels
+
+
+def update_rule(rule_def, threshold_list=None, is_update=True):
+    """
+    Updates rule definitions with new thresholds.
+
+    Parameters
+    ----------
+    rule_def : list
+        Existing rule definitions.
+    threshold_list : list, optional
+        List of new thresholds to add (default is empty).
+    is_update : bool, optional
+        Indicates whether to update or create new rules (default is True).
+
+    Returns
+    -------
+    tuple
+        Updated rule definitions, boundaries, and label lists.
+    """
+    if threshold_list is None:
+        threshold_list = []
+    all_rules = [] if rule_def is None or is_update else list(np.copy(rule_def))
+    all_rules.extend(threshold_list)
+
+    # Sort and decompose operands
+    sorted_rules = sort_rule(all_rules)
+    decomposed_rules = decompose_operand(sorted_rules.to_dict("records"))
+
+    # Generate boundaries and labels efficiently
+    boundaries = np.unique(decomposed_rules["value"])
+    interval_labels, value_labels = generate_labels(decomposed_rules, boundaries)
+
+    # Combine interval and value labels for final label list
+    label_list = [val for pair in zip(interval_labels, value_labels) for val in pair]
+    label_list.append(interval_labels[-1])
     return all_rules, boundaries, label_list
 
 
 def sort_rule(rule_def):
+    """
+    Sorts rule definitions by value and operand order.
+
+    Parameters
+    ----------
+    rule_def : list
+        List of rule definitions.
+
+    Returns
+    -------
+    pd.DataFrame
+        Sorted DataFrame of rules.
+    """
     df = pd.DataFrame(rule_def)
-    df["value"] = pd.to_numeric(df["value"])
+    # logging.debug(df)
+    # Convert "NA" and "Inf" to np.nan and np.inf, then convert column to numeric
+    df["value"].replace({"NA": np.nan, "Inf": np.inf, "-Inf": -np.inf}, inplace=True)
+    df["value"] = pd.to_numeric(df["value"], errors="coerce")
     df["operand_order"] = df["op"].map(OPERAND_MAPPING_DICT)
     df.sort_values(
-        by=["value", "operand_order"],
-        inplace=True,
-        ascending=[True, True],
-        ignore_index=True,
+        by=["value", "operand_order"], ascending=True, inplace=True, ignore_index=True
     )
-
     return df
 
 
 def decompose_operand(rule_dict):
+    """
+    Decomposes operands into distinct components for comparison.
+
+    Parameters
+    ----------
+    rule_dict : dict
+        Dictionary of rule definitions.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame of all operands after decomposition.
+    """
+    # Convert the input dictionary to DataFrame and apply mapping for operand order
     df = pd.DataFrame(rule_dict)
-    df["value"] = pd.to_numeric(df["value"])
+    # Convert "NA" and "Inf" to np.nan and np.inf, then convert column to numeric
+    df["value"].replace({"NA": np.nan, "Inf": np.inf, "-Inf": -np.inf}, inplace=True)
+    df["value"] = pd.to_numeric(df["value"], errors="coerce")
     df["operand_order"] = df["op"].map(OPERAND_MAPPING_DICT)
 
-    single_operand = df[
-        (df["operand_order"] == 5)
-        | (df["operand_order"] == 3)
-        | (df["operand_order"] == 1)
-    ].to_dict("records")
+    # Initialize a list to collect decomposed operands
+    decomposed_operands = []
 
-    df_gte_operand = df[(df["operand_order"] == 4)]
-    gte_g_operand = df_gte_operand.replace(">=", ">").to_dict("records")
-    gte_e_operand = df_gte_operand.replace(">=", "=").to_dict("records")
+    # Identify and handle single operands without decomposition
+    single_operands = df[df["operand_order"].isin([5, 3, 1])]
+    decomposed_operands.append(single_operands)
 
-    df_lte_operand = df[(df["operand_order"] == 2)]
-    lte_l_operand = df_lte_operand.replace("<=", "<").to_dict("records")
-    lte_e_operand = df_lte_operand.replace("<=", "=").to_dict("records")
+    # Handle 'gte' (>=) operands by creating '>' and '=' entries
+    gte_operands = df[df["operand_order"] == 4]
+    if not gte_operands.empty:
+        gte_operands_equal = gte_operands.copy()
+        gte_operands["op"] = ">"
+        gte_operands_equal["op"] = "="
+        decomposed_operands.extend([gte_operands, gte_operands_equal])
 
-    all_operand = (
-        single_operand + gte_g_operand + gte_e_operand + lte_l_operand + lte_e_operand
-    )
+    # Handle 'lte' (<=) operands by creating '<' and '=' entries
+    lte_operands = df[df["operand_order"] == 2]
+    if not lte_operands.empty:
+        lte_operands_equal = lte_operands.copy()
+        lte_operands["op"] = "<"
+        lte_operands_equal["op"] = "="
+        decomposed_operands.extend([lte_operands, lte_operands_equal])
 
-    df_all_operand = sort_rule(all_operand)
-
-    return df_all_operand
+    # Concatenate all decomposed operands and sort
+    all_operands = pd.concat(decomposed_operands, ignore_index=True)
+    return sort_rule(all_operands.to_dict("records"))
 
 
 def check_unique_pair(pair):
-    assert len(pair) <= 1, (
-        "Duplicated decision at '" + str(pair["value"]) + " " + pair["op"] + "'"
-    )
+    """
+    Checks that there are no duplicate decisions.
+
+    Parameters
+    ----------
+    pair : pd.DataFrame
+        DataFrame containing a pair of values.
+
+    Returns
+    -------
+    bool
+        True if the pair is unique.
+    """
+    assert len(pair) <= 1, f"Duplicated decision at '{pair['value']} {pair['op']}'"
     return True
 
 
 def check_conflict(decision_lt, decision_gt):
-    if len(decision_lt) == 0:
-        label_lt = None
-    else:
-        label_lt = decision_lt["label"].values[0]
-    if len(decision_gt) == 0:
-        label_gt = None
-    else:
-        label_gt = decision_gt["label"].values[0]
+    """
+    Checks for conflicts between two decisions.
 
-    if label_lt == None:
+    Parameters
+    ----------
+    decision_lt : pd.DataFrame
+        Decision with less-than operand.
+    decision_gt : pd.DataFrame
+        Decision with greater-than operand.
+
+    Returns
+    -------
+    str
+        Label if no conflict, otherwise raises ValueError.
+    """
+    label_lt = decision_lt["label"].values[0] if not decision_lt.empty else None
+    label_gt = decision_gt["label"].values[0] if not decision_gt.empty else None
+
+    if label_lt is None:
         return label_gt
-    if label_gt == None:
+    if label_gt is None:
         return label_lt
-    # Check conflict
-    if not label_lt == label_gt:
+    if label_lt != label_gt:
         raise ValueError(
-            "Rules raise a conflict at x "
-            + decision_lt.iloc[0]["op"]
-            + " "
-            + str(decision_lt.iloc[0]["value"])
-            + " is "
-            + decision_lt.iloc[0]["label"]
-            + ", but x "
-            + decision_gt.iloc[0]["op"]
-            + " "
-            + str(decision_gt.iloc[0]["value"])
-            + " is "
-            + decision_gt.iloc[0]["label"]
+            f"Conflict detected: '{decision_lt.iloc[0]['op']} {decision_lt.iloc[0]['value']}' "
+            f"is {label_lt}, but '{decision_gt.iloc[0]['op']} {decision_gt.iloc[0]['value']}' "
+            f"is {label_gt}."
         )
     return label_gt
 
 
 def get_decision(df, boundaries, idx):
-    start_value = boundaries[idx]
-    end_value = boundaries[idx + 1]
-    decision_lt = df[(df["value"] == end_value) & (df["op"] == "<")]
-    check_unique_pair(decision_lt)
-    decision_gt = df[(df["value"] == start_value) & (df["op"] == ">")]
-    check_unique_pair(decision_gt)
+    """
+    Recursively fetches the decision for a given boundary index.
 
-    decision = check_conflict(decision_lt, decision_gt)
-    while decision == None and idx <= (len(df) - 1):
-        decision = get_decision(df, boundaries, idx + 1)
-    return decision
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame of rule definitions.
+    boundaries : np.ndarray
+        Array of boundary values.
+    idx : int
+        Current index of the boundary.
+
+    Returns
+    -------
+    str
+        Decision label or None if not found.
+    """
+    start_value, end_value = boundaries[idx], boundaries[idx + 1]
+    decision_lt = df[(df["value"] == end_value) & (df["op"] == "<")]
+    decision_gt = df[(df["value"] == start_value) & (df["op"] == ">")]
+
+    check_unique_pair(decision_lt)
+    check_unique_pair(decision_gt)
+    return check_conflict(decision_lt, decision_gt)
 
 
 def get_inteveral_label_list(df, boundaries):
@@ -377,80 +560,160 @@ def get_value_label_list(df, boundaries, interval_label_list):
     return value_label_list
 
 
-def cut_segment(df, milestone):
+def cut_segment(df, milestones):
     """
-    Spit Dataframe into segments, base on the pair of start and end indices.
+    Splits a DataFrame into segments based on the start and end indices provided in the milestones DataFrame.
 
     Parameters
     ----------
-    df :
-        Signal dataframe .
-    milestone :
-        Indices dataframe
+    df : pd.DataFrame
+        Signal DataFrame containing the full data to be segmented.
+    milestones : pd.DataFrame
+        DataFrame containing 'start' and 'end' columns, representing the start and end indices for each segment.
 
     Returns
     -------
-    The list of split segments.
+    list of pd.DataFrame
+        A list of DataFrame segments based on the specified start and end indices.
+
+    Raises
+    ------
+    AssertionError
+        If milestones is not a DataFrame or if 'start' and 'end' columns are missing.
+        If start and end indices are out of bounds.
     """
-    assert isinstance(milestone, pd.DataFrame), (
-        "Please convert the milestone as dataframe "
-        "with 'start' and 'end' columns. "
-        ">>> from vital_sqi.common.utils import format_milestone"
-        ">>> milestones = format_milestone(start_milestone,end_milestone)"
+    # Check milestones format and columns
+    assert isinstance(milestones, pd.DataFrame), (
+        "Milestones must be a DataFrame with 'start' and 'end' columns. "
+        "Use `format_milestone` to prepare the milestone DataFrame if needed."
     )
-    start_milestone = np.array(milestone.iloc[:, 0])
-    end_milestone = np.array(milestone.iloc[:, 1])
-    processed_df = []
-    for idx, (start, end) in enumerate(zip(start_milestone, end_milestone)):
-        processed_df.append(df.iloc[int(start) : int(end)])
-    return processed_df
+    assert (
+        "start" in milestones.columns and "end" in milestones.columns
+    ), "Milestones DataFrame must contain 'start' and 'end' columns."
+
+    # Initialize list to hold segmented DataFrames
+    segmented_dfs = []
+
+    # Loop over each milestone row to cut segments
+    for _, row in milestones.iterrows():
+        start, end = int(row["start"]), int(row["end"])
+
+        # Check that start and end are within DataFrame bounds
+        if start < 0 or end > len(df):
+            raise ValueError(
+                f"Segment index out of bounds: start={start}, end={end}, length={len(df)}"
+            )
+        if start >= end:
+            raise ValueError(
+                f"Start index must be less than end index: start={start}, end={end}"
+            )
+
+        # Slice DataFrame for the given segment and append to list
+        segmented_dfs.append(df.iloc[start:end])
+
+    return segmented_dfs
 
 
 def format_milestone(start_milestone, end_milestone):
     """
+    Formats start and end milestones as a DataFrame, trimming to the minimum length if necessary.
 
     Parameters
     ----------
-    start_milestone :
-        array-like represent the start indices of segment.
-    end_milestone :
-        array-like represent the end indices of segment.
+    start_milestone : array-like
+        Start indices of segments.
+    end_milestone : array-like
+        End indices of segments.
 
     Returns
     -------
-    a dataframe of two columns.
-    The first column indicates the start indices, the second indicates the end indices
+    pd.DataFrame
+        DataFrame with 'start' and 'end' columns, truncated to minimum length if input lengths differ.
     """
-    assert (
-        len(start_milestone) == end_milestone
-    ), "The list of  start indices and end indices must equal size"
-    df_milestones = pd.DataFrame()
-    df_milestones["start"] = start_milestone
-    df_milestones["end"] = end_milestone
-    return df_milestones
+    min_length = min(len(start_milestone), len(end_milestone))
+
+    if len(start_milestone) != len(end_milestone):
+        logging.warning(
+            "Mismatched lengths for start and end milestones. Truncating to minimum length: %d",
+            min_length,
+        )
+
+    # Truncate both lists to the minimum length
+    start_milestone = start_milestone[:min_length]
+    end_milestone = end_milestone[:min_length]
+
+    return pd.DataFrame({"start": start_milestone, "end": end_milestone})
 
 
 def check_signal_format(s):
-    assert isinstance(s, pd.DataFrame), "Expected a pd.DataFrame."
-    assert len(s.columns) == 2, "Expect a datafram of only two columns."
-    assert isinstance(
-        s.iloc[0, 0], pd.Timestamp
-    ), "Expected type of the first column to be pd.Timestamp."
-    assert is_number(s.iloc[0, 1]), "Expected type of the second column to be float"
-    return True
+    """
+    Checks and converts the input signal to a DataFrame with a 'timestamp' column if missing.
+
+    Parameters
+    ----------
+    s : pd.DataFrame, list, or np.ndarray
+        Input signal data. Can be a DataFrame, list, or numpy array.
+
+    Returns
+    -------
+    pd.DataFrame
+        Validated and formatted DataFrame with 'timestamp' and 'signal' columns.
+    """
+    # Convert to DataFrame if necessary
+    if not isinstance(s, pd.DataFrame):
+        if isinstance(s, (list, np.ndarray)):
+            s = pd.DataFrame(s, columns=["signal"])
+        else:
+            logging.error(
+                "Invalid input type. Expected DataFrame, list, or numpy array."
+            )
+            return None  # or handle accordingly
+
+    # Check or create 'timestamp' column
+    if "timestamp" not in s.columns or not np.issubdtype(
+        s["timestamp"].dtype, np.datetime64
+    ):
+        s.insert(0, "timestamp", pd.to_datetime(pd.Series(range(len(s))), unit="s"))
+        logging.error(
+            "No valid timestamp column found. Generated 'timestamp' column based on index."
+        )
+
+    # Ensure the second column is numerical
+    if not np.issubdtype(s.iloc[:, 1].dtype, np.number):
+        logging.error("The signal column contains non-numeric values.")
+        return None  # or handle accordingly
+
+    return s
 
 
 def create_rule_def(sqi_name, upper_bound=0, lower_bound=1):
-    json_rule_dict = {}
-    json_rule_dict[sqi_name] = {
-        "name": sqi_name,
-        "def": [
-            {"op": ">", "value": str(lower_bound), "label": "accept"},
-            {"op": "<=", "value": str(lower_bound), "label": "reject"},
-            {"op": ">=", "value": str(upper_bound), "label": "reject"},
-            {"op": "<", "value": str(upper_bound), "label": "accept"},
-        ],
-        "desc": "",
-        "ref": "",
+    """
+    Creates a default rule definition for SQI.
+
+    Parameters
+    ----------
+    sqi_name : str
+        Name of the SQI.
+    upper_bound : float, optional
+        Upper bound for acceptance (default is 0).
+    lower_bound : float, optional
+        Lower bound for acceptance (default is 1).
+
+    Returns
+    -------
+    dict
+        JSON-style dictionary with rule definitions.
+    """
+    return {
+        sqi_name: {
+            "name": sqi_name,
+            "def": [
+                {"op": ">", "value": str(lower_bound), "label": "accept"},
+                {"op": "<=", "value": str(lower_bound), "label": "reject"},
+                {"op": ">=", "value": str(upper_bound), "label": "reject"},
+                {"op": "<", "value": str(upper_bound), "label": "accept"},
+            ],
+            "desc": "",
+            "ref": "",
+        }
     }
-    return json_rule_dict

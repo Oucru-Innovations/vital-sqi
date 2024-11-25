@@ -119,7 +119,7 @@ split_to_segments(ppg_data.signals.iloc[:, 1],
                   save_file_folder=save_file_folder)
 
 #%%
-ppg_folder = os.path.join(save_file_folder, "ppg")
+ppg_folder = os.path.join(save_file_folder, "PPG")
 file_list = os.listdir(ppg_folder)
 print(file_list)
 

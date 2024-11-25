@@ -1,7 +1,6 @@
 sphinx
 sphinx-rtd-theme
 sphinx-gallery
-librosa
 plotly
 ipython
 jupyter

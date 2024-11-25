@@ -1,278 +1,262 @@
-import numpy
+"""Signal Quality Index (SQI) Processing and Classification Utilities"""
+
 import numpy as np
 import pandas as pd
-import vital_sqi.preprocess.preprocess_signal as sqi_pre
 import json
 from tqdm import tqdm
 from scipy.signal import resample
 from vital_sqi.common.rpeak_detection import PeakDetector
 import vital_sqi.sqi as sq
 from vital_sqi.rule import RuleSet, Rule, update_rule
-from vital_sqi.common.utils import get_nn
+from vital_sqi.common.utils import get_nn, create_rule_def
+from vital_sqi.preprocess.preprocess_signal import taper_signal
 import warnings
+import logging
 import inspect
+from vital_sqi.sqi import sqi_mapping
 
 
-def classify_segments(sqis, rule_dict_filename, ruleset_order):
+def classify_segments(
+    sqis,
+    rule_dict_filename,
+    ruleset_order,
+    auto_mode=True,
+    lower_bound=0.05,
+    upper_bound=0.95,
+):
     """
-    Get the output decision of each segment (accept or reject)
-    by evaluating the threshold of the selected rules
-    with the sqi scores from the sqis dataframe
+    Classify each segment based on SQI thresholds and return the decision per segment.
+
     Parameters
     ----------
     sqis : DataFrame
-        A nxm table contains the list of sqis of each segment.
-        n is the number of segment
-        m is the number of sqi
-
-    rule_dict_filename : string
-        Path to the json file that define the threshold  of sqis
-        Sample format of the json file can be found at 'vital_sqi/resource/rule_dict.json'
-
+        A DataFrame containing SQI values for each segment.
+    rule_dict_filename : str
+        Path to the JSON file defining thresholds for each SQI.
     ruleset_order : dict
-        a dictionary specifies the order of the selected rules.
-        The key indicates the order of that rule
-        The value map with the rule name as defines in 'rule_dict_filename' json
+        Specifies the order of the rules in the ruleset.
+    auto_mode : bool
+        Enables automatic threshold adjustment based on quantiles.
+    lower_bound, upper_bound : float
+        Quantiles for the lower and upper bounds of threshold adjustment.
 
     Returns
     -------
     rule_list : dict
-        A dictionary contains the rule-name as the key and the rule object as the value
-    sqis: DataFrame
-        The same sqis table with 1 extended column indicates the decision ('accept' or 'reject')
-         of each segment
+        Dictionary containing rule names and corresponding Rule objects.
+    sqis : DataFrame
+        Updated DataFrame with decisions ('accept' or 'reject') for each segment.
     """
-    with open(rule_dict_filename) as rule_file:
-        rule_dict = json.loads(rule_file.read())
+    # Load rule dictionary
+    try:
+        with open(rule_dict_filename, "r") as f:
+            rule_dict = json.load(f)
+    except FileNotFoundError as e:
+        raise FileNotFoundError(
+            f"Rule dictionary file not found: {rule_dict_filename}"
+        ) from e
+
     rule_list = {}
     for rule_order, rule_name in ruleset_order.items():
+        if rule_name not in rule_dict:
+            raise KeyError(
+                f"Rule '{rule_name}' not found in rule_dict. "
+                f"Available rules: {list(rule_dict.keys())}"
+            )
+        sqi_name = rule_dict[rule_name]["name"]
+
+        if auto_mode:
+            valid_values = (
+                sqis[0][sqi_name].replace([np.inf, -np.inf, np.nan], np.nan).dropna()
+            )
+            lower_unit = np.quantile(valid_values, lower_bound)
+            upper_unit = np.quantile(valid_values, upper_bound)
+            sqi_rule = create_rule_def(
+                sqi_name, lower_bound=lower_unit, upper_bound=upper_unit
+            )
+            rule_dict[rule_name]["def"] = sqi_rule[sqi_name]["def"]
+
         rule = generate_rule(rule_name, rule_dict[rule_name]["def"])
         rule_list[rule_order] = rule
+
     ruleset = RuleSet(rule_list)
     selected_sqi = list(ruleset_order.values())
-    for i, val in enumerate(np.arange(len(sqis))):
-        sqi_df = sqis[i]
-        decision_list = []
-        for idx in range(len(sqi_df)):
-            row_data = pd.DataFrame(dict(sqi_df[selected_sqi].iloc[idx]), index=[0])
-            decision_list.append(ruleset.execute(row_data))
-        sqi_df["decision"] = decision_list
+
+    for i, sqi_df in enumerate(sqis):
+        decisions = [
+            ruleset.execute(
+                pd.DataFrame(dict(sqi_df[selected_sqi].iloc[idx]), index=[0])
+            )
+            for idx in range(len(sqi_df))
+        ]
+        sqi_df["decision"] = decisions
         sqis[i] = sqi_df
 
-    return rule_list, sqis
+    return ruleset, sqis
 
 
-def get_reject_segments(segments, wave_type, milestones=None, info=None, dict=None):
+def get_reject_segments(segments, wave_type):
     """
-    Handy function to eliminate any invalid signals by other criteria besides SQI
+    Return accept/reject decisions for each segment based on wave type.
 
     Parameters
     ----------
     segments : list
-        The list of signal (in dataframe)
-
+        List of signal DataFrames.
     wave_type : str
-        Either 'ppg' or 'ecg'
-
-    milestones : list
-        The start indices and end indices of each segment.
-         (Default value = None)
-    info : list
-        The list of criteria column to reject invalid signal
-         (Default value = None)
-
-    dict : dict
-        The dictionary map the info column with rejected threshold
+        Type of waveform ('PPG' or 'ECG').
 
     Returns
     -------
-    out : Series
-        A Series with accept/reject decision
+    Series
+        Series with 'accept' or 'reject' for each segment.
     """
-    if wave_type == "ppg":
-        out = pd.Series(["accept"] * len(segments))
-    if wave_type == "ecg":
-        out = pd.Series(["accept"] * len(segments))
-    return out
+    return pd.Series(["accept"] * len(segments))
 
 
-def map_decision(i):
+def map_decision(decision):
     """
-    Handy function to transform decision value.
+    Map decision string to integer for processing.
 
     Parameters
     ----------
-    i :
-
+    decision : str
+        'accept' or 'reject'
 
     Returns
     -------
-
+    int
+        0 for 'accept', 1 for 'reject'
     """
-    if i == "accept":
-        return 0
-    if i == "reject":
-        return 1
+    return 0 if decision == "accept" else 1
 
 
 def get_decision_segments(segments, decision, reject_decision):
     """
-    Return the lists of accepted and rejected segment after evaluating the classification
+    Separate accepted and rejected segments based on decisions.
+
     Parameters
     ----------
     segments : list
-        The list of all segments
-
-    decision : array like
-        An array with rejected and accepted result of the relevant segment.
-
+        List of all segments.
+    decision : list
+        Decisions from SQI evaluation ('accept'/'reject').
     reject_decision : list
-        A list indicates the rejection by other criteria besides sqi
+        Additional rejection criteria.
 
     Returns
     -------
-    a_segments : list
-        List of accepted segments
-    r_segments : list
-        List of rejected segments
+    tuple of lists
+        Accepted and rejected segments.
     """
-    decision = list(map(map_decision, decision))
-    reject_decision = list(map(map_decision, reject_decision))
-    decision = [a + b for a, b in zip(decision, reject_decision)]
-    a_segments = []
-    r_segments = []
-    for i, val in enumerate(decision):
-        if decision[i] == 0:
-            a_segments.append(segments[i])
-        if decision[i] == 1:
-            r_segments.append(segments[i])
-    return a_segments, r_segments
+    # Ensure inputs are of the same length
+    if not (len(segments) == len(decision) == len(reject_decision)):
+        raise ValueError(
+            f"Length mismatch: segments={len(segments)}, decision={len(decision)}, reject_decision={len(reject_decision)}"
+        )
+
+    combined_decision = [
+        map_decision(d) or map_decision(r) for d, r in zip(decision, reject_decision)
+    ]
+    accepted = [seg for idx, seg in enumerate(segments) if combined_decision[idx] == 0]
+    rejected = [seg for idx, seg in enumerate(segments) if combined_decision[idx] == 1]
+    return accepted, rejected
 
 
 def per_beat_sqi(
     sqi_func, troughs, signal, use_mean_beat, mean_resample_size, taper=False, **kwargs
 ):
     """
-    Perform a per-beat application of the selected SQI function on the signal
-    segment
+    Compute SQI per beat by dividing the signal based on trough indices.
 
     Parameters
     ----------
     sqi_func : function
-        An SQI function to be performed.
-
-    troughs : array of int
-        Idices of troughs in the signal provided by peak detector to be able to extract individual beats
-
-    signal :
-        Signal array containing one segment of the waveform
-
+        Function for calculating SQI per beat.
+    troughs : array-like
+        Indices marking the start of each beat.
+    signal : array-like
+        Signal values for a single segment.
     use_mean_beat : bool
-        If is True, each beat will be resampled and get the mean.
-        The mean beat is used as the representative of a single_beat for sqi computation
-        (Default value = True)
-
+        Whether to use a resampled mean beat for SQI calculation.
     mean_resample_size : int
-        The resample size if use mean_beat computation
-        (Default value = 100)
-
+        Resample size for mean beat.
     taper : bool
-        Is each beat need to be tapered or not before executing the SQI function
-
-    **kwargs : dict
-        Additional positional arguments that needs to be fed into the SQI function
+        Whether to taper each beat.
 
     Returns
     -------
-    calculated_SQI : array
-        An array with SQI values for each beat of the signal
-
+    list
+        SQI values per beat.
     """
-    # Remove first and last trough as they might be on the edge
-    troughs = troughs[1:-1]
-    beat_list = []
-    # sqi_scores = sqi_func(s, **kwargs)
-    if len(troughs) > 2:
-        sqi_vals = []
-        for idx, beat_start in enumerate(troughs[:-1]):
-            single_beat = signal[beat_start : troughs[idx + 1]]
-            if taper:
-                single_beat = sqi_pre.taper_signal(single_beat)
-            if use_mean_beat:
-                beat_list.append(resample(single_beat, mean_resample_size))
-            else:
-                sqi_vals.append(sqi_func(single_beat, **kwargs))
-        if use_mean_beat:
-            beat_list = np.array(beat_list)
-            beat = np.apply_along_axis(np.mean, axis=0, arr=beat_list)
-            sqi_vals.append(sqi_func(beat, **kwargs))
-        return sqi_vals
-
-    else:
+    if len(troughs) < 2:
+        logging.warning("Not enough troughs to compute beats.")
         return [-np.inf]
-        raise Exception("Not enough peaks in the signal to generate per beat SQI")
+
+    sqi_vals = []
+    beat_list = []
+
+    for idx in range(len(troughs) - 1):
+        single_beat = signal[troughs[idx] : troughs[idx + 1]]
+        if len(single_beat) == 0:
+            continue
+        if taper:
+            single_beat = taper_signal(single_beat)
+
+        if use_mean_beat:
+            beat_list.append(resample(single_beat, mean_resample_size))
+        else:
+            sqi = sqi_func(single_beat, **kwargs)
+            sqi_vals.append(sqi)
+
+    if use_mean_beat and beat_list:
+        mean_beat = np.mean(np.array(beat_list), axis=0)
+        sqi = sqi_func(mean_beat, **kwargs)
+        sqi_vals.extend([sqi] * (len(troughs) - 1))  # One SQI per beat
+
+    if not sqi_vals:
+        logging.warning("No valid beats found for SQI calculation.")
+        return [-np.inf]
+
+    return sqi_vals
 
 
 def get_sqi_dict(sqis, sqi_name):
     """
-    Handy function to map the sqi name with its output.
-
-    When the SQI computes with per-beat option,
-    the suffices of 3-criteria (_mean, _std, _median) is appended.
-
-    When the SQI computes with per-segment option,
-    a suffices _sqi is appended.
+    Map SQI name with computed values based on SQI type.
 
     Parameters
     ----------
-    sqis :  dict, numeric, list
-        The sqi scores
-
+    sqis : various
+        SQI values.
     sqi_name : str
-        The name of the current sqi
+        Name of the SQI.
 
     Returns
     -------
-    SQI_dict: dict
-        A dictionary with the keys indicate the sqi names and the value is the relevant scores
+    dict
+        Mapped SQI values.
     """
     if sqi_name == "correlogram_sqi":
-        SQI_dict = {}
         variations_acf = ["_peak1", "_peak2", "_peak3", "_value1", "_value2", "_value3"]
-        for idx, variations in enumerate(variations_acf):
-            SQI_dict["correlogram" + variations + "_sqi"] = sqis[idx]
-        return SQI_dict
+        return {
+            f"correlogram{variation}_sqi": sqis[idx]
+            for idx, variation in enumerate(variations_acf)
+        }
 
     if isinstance(sqis, dict):
         return sqis
 
-    if isinstance(sqis, (float, int)):
-        return {sqi_name: sqis}
+    if isinstance(sqis, (float, int, np.ndarray)):
+        return {sqi_name: sqis[0] if isinstance(sqis, np.ndarray) else sqis}
 
-    if isinstance(sqis, numpy.ndarray):
-        if len(sqis.shape) == 0:
-            return {sqi_name: -1}
-        return {sqi_name: sqis[0]}
-
-    if isinstance(sqis, list):
-        SQI_dict = {}
-        variations_stats = ["_mean", "_median", "_std"]
-        if len(sqis) > 1:
-            SQI_dict[sqi_name + variations_stats[0] + "_sqi"] = np.mean(sqis)
-            SQI_dict[sqi_name + variations_stats[1] + "_sqi"] = np.median(sqis)
-            SQI_dict[sqi_name + variations_stats[2] + "_sqi"] = np.std(sqis)
-        else:
-            SQI_dict[sqi_name] = sqis[0]
-        return SQI_dict
-
-    if isinstance(sqis, tuple):
-        SQI_dict = {}
-        for idx, features_dict in enumerate(sqis):
-            features_dict_ = dict(
-                (key + "_sqi", value) for (key, value) in features_dict.items()
-            )
-            SQI_dict = {**SQI_dict, **features_dict_}
-        return SQI_dict
+    if isinstance(sqis, list) and len(sqis) > 1:
+        return {
+            f"{sqi_name}_mean_sqi": np.mean(sqis),
+            f"{sqi_name}_median_sqi": np.median(sqis),
+            f"{sqi_name}_std_sqi": np.std(sqis),
+        }
+    return {sqi_name: sqis[0]}
 
 
 def get_sqi(
@@ -282,229 +266,178 @@ def get_sqi(
     per_beat=False,
     use_mean_beat=True,
     mean_resample_size=100,
-    wave_type="ppg",
-    peak_detector=7,
+    wave_type="PPG",
+    peak_detector=6,
     **kwargs,
 ):
     """
-    Generic function to invoke the computation of SQI
+    Compute SQI for a signal segment using the specified function and configuration.
 
     Parameters
     ----------
     sqi_func : function
-        The sqi function in vital_sqi/sqi
-        (or user can define their function)
-
-    s : array like
-        The signal values of the examining segment
-
-    use_mean_beat : bool
-        If is True, each beat will be resampled and get the mean.
-        The mean beat is used as the representative of a single_beat for sqi computation
-        (Default value = True)
-
-    mean_resample_size : int
-        The resample size if use mean_beat computation
-        (Default value = 100)
-
-    per_beat :
-        Compute the segment with per_beat option
-         (Default value = False)
-
-    wave_type : str
-        Either 'ppg' or 'ecg'
-         (Default value = 'ppg')
-
-    peak_detector : int
-        The peak detector mode (from 1 - 7)
-         (Default value = 7)
-    **kwargs :
-
+        Function to calculate SQI.
+    sqi_name : str
+        Name of the SQI.
+    s : DataFrame
+        Signal data.
+    per_beat : bool, optional
+        Whether to calculate SQI per beat.
+    use_mean_beat : bool, optional
+        Whether to use mean beat for SQI calculation.
+    mean_resample_size : int, optional
+        Resample size for mean beat.
+    wave_type : str, optional
+        Waveform type ('PPG' or 'ECG').
+    peak_detector : int, optional
+        Peak detector mode (1-7).
 
     Returns
     -------
-    sqi_score_dict : dict
-        The dictionary with the keys indicate the sqi name and the values indicates the scores
-
+    dict
+        Calculated SQI values.
     """
-    signal_arg = inspect.getfullargspec(sqi_func)[0][0]
-    if signal_arg == "nn_intervals":
-        s = get_nn(s.iloc[:, 1])
+    # Extract signal values as array-like
+    if isinstance(s, pd.DataFrame):
+        signal_values = s.iloc[:, 1].values  # Extract the second column as numpy array
+    elif isinstance(s, pd.Series):
+        signal_values = s.values  # Convert Series to array
     else:
-        s = s.iloc[:, 1]
+        signal_values = np.asarray(s)  # Ensure array-like for other input types
+    # print(sqi_func.__name__)
+    # Handle nn_intervals or other signal arguments
+    if inspect.getfullargspec(sqi_func)[0][0] == "nn_intervals":
+        # print(sqi_func.__name__)
+        signal_values = get_nn(signal_values)
+
     if per_beat:
-        # Prepare primary peak detector and perform peak detection
+        # Peak detection and SQI calculation per beat
         detector = PeakDetector()
-        if wave_type == "ppg":
-            peak_list, trough_list = detector.ppg_detector(s, peak_detector)
+        if wave_type == "PPG":
+            peak_list, trough_list = detector.ppg_detector(signal_values, peak_detector)
         else:
-            peak_list, trough_list = detector.ecg_detector(s, peak_detector)
+            peak_list, trough_list = detector.ecg_detector(signal_values, peak_detector)
         sqi_scores = per_beat_sqi(
-            sqi_func, trough_list, s, use_mean_beat, mean_resample_size, **kwargs
+            sqi_func,
+            trough_list,
+            signal_values,
+            use_mean_beat,
+            mean_resample_size,
+            **kwargs,
         )
     else:
+        # Add wave_type to kwargs if needed
         if "wave_type" in inspect.getfullargspec(sqi_func)[0]:
             kwargs["wave_type"] = wave_type
-        sqi_scores = sqi_func(s, **kwargs)
+        sqi_scores = sqi_func(signal_values, **kwargs)
+
+    # Convert SQI scores into a dictionary
     sqi_score_dict = get_sqi_dict(sqi_scores, sqi_name)
     return sqi_score_dict
 
 
 def extract_segment_sqi(s, sqi_list, sqi_names, sqi_arg_list, wave_type):
     """
+    Extract SQIs for a single segment.
 
     Parameters
     ----------
-    s :
-        param sqi_list: list of sqi as in MASTERDICT
-    nn_sqi_list :
-        list of sqi using nn_intervals as in 'HRV' MASTER_DICT
-    nn_sqi_arg_list :
-        param sqi_arg_list:
-    sqi_list :
-
-    sqi_arg_list :
-
-    wave_type :
-
+    s : DataFrame
+        Segment signal data.
+    sqi_list : list
+        List of SQI functions.
+    sqi_names : list
+        Names of SQIs.
+    sqi_arg_list : dict
+        Arguments for each SQI.
+    wave_type : str
+        Type of waveform ('PPG' or 'ECG').
 
     Returns
     -------
-
+    Series
+        Calculated SQI values.
     """
-    sqi_score = {}
-    sqi_type = list(sqi_arg_list.keys())
-    for idx, sqi_ in enumerate(sqi_list):
+    sqi_scores = {}
+
+    for sqi_func, sqi_name in zip(sqi_list, sqi_names):
+        args = sqi_arg_list.get(sqi_name, {}).copy()
+        args["wave_type"] = wave_type
+
         try:
-            args_ = sqi_arg_list[sqi_type[idx]]
-            sqi_name = sqi_names[idx]
-            args_["wave_type"] = wave_type
-            if sqi_.__name__ == "perfusion_sqi":
-                args_ = {"y": np.array(s.iloc[:, 1])}
-            sqi_score = {**sqi_score, **get_sqi(sqi_, sqi_name, s, **args_)}
-        except Exception as err:
-            warnings.warn(f"{sqi_.__name__} raises exception {err}")
-            continue
-    return pd.Series(sqi_score)
+            if sqi_func.__name__ == "perfusion_sqi":
+                args = {"y": np.array(s.iloc[:, 1])}
+            sqi_scores.update(get_sqi(sqi_func, sqi_name, s, **args))
+        except Exception as e:
+            warnings.warn(f"{sqi_func.__name__} raised exception: {e}")
+
+    return pd.Series(sqi_scores)
 
 
-def extract_sqi(segments, milestones, sqi_dict_filename, wave_type="ppg"):
+def extract_sqi(segments, milestones, sqi_dict_filename, wave_type="PPG"):
     """
-    Extract SQIs requested in SQI dictionary for a list of  segments
+    Extract SQIs for multiple segments based on SQI dictionary.
 
     Parameters
     ----------
     segments : list
-        List of segments to compute SQIs
-
-    milestones : pandas dataframe
-        Dataframe with 2 columns for start and end milestones of segments.
-
-    sqi_dict_filename :
-        Path to SQI dictionary json file which contains the requested SQIs and
-        their corresponding parameters.
-
-    wave_type :
-         (Default value = 'ppg')
+        List of segments.
+    milestones : DataFrame
+        Milestone indices for segments.
+    sqi_dict_filename : str
+        Path to SQI configuration file.
+    wave_type : str, optional
+        Type of waveform ('PPG' or 'ECG').
 
     Returns
     -------
-
+    DataFrame
+        Extracted SQIs for each segment.
     """
-    sqi_mapping_list = {
-        # Standard SQI
-        "perfusion_sqi": sq.perfusion_sqi,
-        "kurtosis_sqi": sq.kurtosis_sqi,
-        "skewness_sqi": sq.skewness_sqi,
-        "entropy_sqi": sq.entropy_sqi,
-        "signal_to_noise_sqi": sq.signal_to_noise_sqi,
-        "zero_crossings_rate_sqi": sq.zero_crossings_rate_sqi,
-        "mean_crossing_rate_sqi": sq.mean_crossing_rate_sqi,  # should be merged with zero crossing
-        # Peaks SQI
-        "ectopic_sqi": sq.ectopic_sqi,
-        "correlogram_sqi": sq.correlogram_sqi,
-        "interpolation_sqi": sq.interpolation_sqi,
-        "msq_sqi": sq.msq_sqi,
-        # 'poincare_feature_sqi': sq.poincare_feature_sqi,
-        # Waveform SQI
-        "band_energy_sqi": sq.band_energy_sqi,
-        "lfe_sqi": sq.lf_energy_sqi,
-        "qrse_sqi": sq.qrs_energy_sqi,
-        "hfe_sqi": sq.hf_energy_sqi,
-        "vhfp_sqi": sq.vhf_norm_power_sqi,
-        "qrsa_sqi": sq.qrs_a_sqi,
-        # DTW SQI
-        "dtw_sqi": sq.dtw_sqi,
-        # ======================
-        "nn_mean_sqi": sq.nn_mean_sqi,
-        "sdnn_sqi": sq.sdnn_sqi,
-        "sdsd_sqi": sq.sdsd_sqi,
-        "rmssd_sqi": sq.rmssd_sqi,
-        "cvsd_sqi": sq.cvsd_sqi,
-        "cvnn_sqi": sq.cvnn_sqi,
-        "mean_nn_sqi": sq.mean_nn_sqi,
-        "median_nn_sqi": sq.median_nn_sqi,
-        "pnn_sqi": sq.pnn_sqi,
-        "hr_mean_sqi": sq.hr_mean_sqi,
-        "hr_median_sqi": sq.hr_median_sqi,
-        "hr_min_sqi": sq.hr_min_sqi,
-        "hr_max_sqi": sq.hr_max_sqi,
-        "hr_std_sqi": sq.hr_std_sqi,
-        "hr_range_sqi": sq.hr_range_sqi,
-        "peak_frequency_sqi": sq.peak_frequency_sqi,
-        "absolute_power_sqi": sq.absolute_power_sqi,
-        "log_power_sqi": sq.log_power_sqi,
-        "relative_power_sqi": sq.relative_power_sqi,
-        "normalized_power_sqi": sq.normalized_power_sqi,
-        "lf_hf_ratio_sqi": sq.lf_hf_ratio_sqi,
-        "poincare_sqi": sq.poincare_features_sqi,
-        "hrv_sqi": sq.get_all_features_hrva,
-    }
-    assert sqi_dict_filename is not None, (
-        "Expected an sqi_dict json file. "
-        "Template could be found in "
-        "vita_sqi/resource."
-    )
-    assert segments is not None, "Expected a list of segments."
-    assert milestones is not None, "Expected milestones of split segments."
+    with open(sqi_dict_filename, "r") as arg_file:
+        sqi_dict = json.load(arg_file)
 
-    arg_path = sqi_dict_filename
-    with open(arg_path, "r") as arg_file:
-        sqi_dict = json.loads(arg_file.read())
-    sqi_list = []
-    sqi_names = []
-    sqi_arg_list = {}
-    for item_key, item_value in sqi_dict.items():
-        sqi_names.append(item_key)
-        sqi_list.append(sqi_mapping_list[item_value["sqi"]])
-        sqi_arg_list[item_key] = item_value["args"]
-    df_sqi = pd.DataFrame()
+    # Extract SQI function mappings, names, and arguments
+    sqi_list = [sqi_mapping[sqi["sqi"]] for sqi in sqi_dict.values()]
+    sqi_names = list(sqi_dict.keys())
+    sqi_arg_list = {name: sqi["args"] for name, sqi in sqi_dict.items()}
+
+    # Initialize an empty list to collect SQI rows
+    sqi_rows = []
     for segment_idx, segment in enumerate(tqdm(segments)):
-        sqi_arg_list["perfusion_sqi"] = {"y": segment.iloc[:, 1]}
-        sqis = extract_segment_sqi(
+        # Extract SQIs for the current segment
+        sqi_vals = extract_segment_sqi(
             segment, sqi_list, sqi_names, sqi_arg_list, wave_type
         )
-        df_sqi = df_sqi.append(sqis, ignore_index=True)
-    df_sqi["start_idx"] = milestones.iloc[:, 0]
-    df_sqi["end_idx"] = milestones.iloc[:, 1]
+        sqi_rows.append(sqi_vals)
+
+    # Convert collected SQI rows into a DataFrame
+    df_sqi = pd.DataFrame(sqi_rows)
+
+    # Add start and end indices from milestones
+    df_sqi["start_idx"] = milestones.iloc[:, 0].values
+    df_sqi["end_idx"] = milestones.iloc[:, 1].values
+
     return df_sqi
 
 
 def generate_rule(rule_name, rule_def):
     """
+    Generate a Rule object from rule definition.
 
     Parameters
     ----------
-    rule_name :
-
-    rule_def :
-
+    rule_name : str
+        Rule name.
+    rule_def : dict
+        Rule definitions.
 
     Returns
     -------
-
+    Rule
+        Created rule object.
     """
     rule_def, boundaries, label_list = update_rule(rule_def, is_update=False)
-    rule_detail = {"def": rule_def, "boundaries": boundaries, "labels": label_list}
-    rule = Rule(rule_name, rule_detail)
-    return rule
+    return Rule(
+        rule_name, {"def": rule_def, "boundaries": boundaries, "labels": label_list}
+    )

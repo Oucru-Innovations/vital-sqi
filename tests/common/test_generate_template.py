@@ -1,15 +1,4 @@
-import pytest
-import numpy as np
-
 from scipy.special import erf
-from sklearn.preprocessing import MinMaxScaler
-from scipy import signal
-import scipy
-from scipy.signal import argrelextrema
-import plotly.io as pio
-from scipy.integrate import solve_ivp
-from vital_sqi.preprocess.preprocess_signal import squeeze_template
-
 
 class TestPPGDualDoubleFrequencyTemplate(object):
     def test_on_ppg_dual_double_frequency_template(self):

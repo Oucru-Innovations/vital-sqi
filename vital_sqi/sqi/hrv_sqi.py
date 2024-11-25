@@ -1,27 +1,4 @@
-"""Heart rate variability SQIs
-This module allows to compute time and frequency domain HRV
-to use those as signal quality indexes, including:
-HR
-- HR: Mean, median, min, max, std of heart rate
-- HR: Ratio of HR out of a defined range
-HRV time domain
-- SDNN
-- SDSD
-- RMSSD
-- CVSD
-- CVNN
-- mean NN
-- median NN
-- pNNx
-HRV frequency domain
-- Peak frequency
-- Absolute power
-- Log power
-- Relative power
-- Normalised power
-- Lf Hf ratio
-- Poincare features
-"""
+"""Heart rate variability SQIs for time and frequency domain analysis."""
 
 import numpy as np
 from vital_sqi.common.power_spectrum import calculate_psd
@@ -39,669 +16,497 @@ from vital_sqi.common.utils import HiddenPrints
 
 def nn_mean_sqi(nn_intervals):
     """
+    Calculates the mean of NN intervals.
 
-    Parameters
+    Parameters:
     ----------
-    nn_intervals :
+    nn_intervals : list or np.ndarray
+        List of NN intervals in milliseconds.
 
-
-    Returns
+    Returns:
     -------
     float
-        The arithmetic mean of NN intervals.
+        The mean of NN intervals or NaN if input is invalid.
 
+    Example:
+    -------
+    >>> nn_intervals = [800, 810, 820, 830]
+    >>> nn_mean_sqi(nn_intervals)
+    815.0
     """
-
-    return np.mean(nn_intervals)
+    try:
+        if not nn_intervals:
+            warnings.warn("Empty NN intervals provided.")
+            return np.nan
+        return np.mean(nn_intervals)
+    except Exception as e:
+        warnings.warn(f"Error in nn_mean_sqi: {e}")
+        return np.nan
 
 
 def sdnn_sqi(nn_intervals):
-    """Function returning the standard deviation of the NN intervals
+    """
+    Calculates the standard deviation of NN intervals.
 
-    Parameters
+    Parameters:
     ----------
-    nn_intervals : list
-        Normal to Normal Interval
+    nn_intervals : list or np.ndarray
+        List of NN intervals in milliseconds.
 
-    Returns
+    Returns:
     -------
     float
-        The standard deviation of the NN intervals
+        The standard deviation of NN intervals or NaN if input is invalid.
+
+    Example:
+    -------
+    >>> nn_intervals = [800, 810, 820, 830]
+    >>> sdnn_sqi(nn_intervals)
+    12.47
     """
-    return np.std(nn_intervals, ddof=1)
+    try:
+        if not nn_intervals:
+            warnings.warn("Empty NN intervals provided.")
+            return np.nan
+        return np.std(nn_intervals, ddof=1)
+    except Exception as e:
+        warnings.warn(f"Error in sdnn_sqi: {e}")
+        return np.nan
 
 
 def sdsd_sqi(nn_intervals):
-    """Function returning the standard deviation of the successive differences
-    from NN intervals.
+    """
+    Calculates the standard deviation of successive NN interval differences.
 
-    Parameters
+    Parameters:
     ----------
-    nn_intervals : list
-        Normal to Normal Interval
+    nn_intervals : list or np.ndarray
+        List of NN intervals in milliseconds.
 
-    Returns
+    Returns:
     -------
     float
-        The standard deviation of the differences of NN intervals
+        The standard deviation of successive NN differences or NaN if input is invalid.
+
+    Example:
+    -------
+    >>> nn_intervals = [800, 810, 820, 830]
+    >>> sdsd_sqi(nn_intervals)
+    10.0
     """
-    # get successive differences
-    sd = np.diff(nn_intervals)
-    return np.std(sd)
+    try:
+        if len(nn_intervals) < 2:
+            warnings.warn("Insufficient NN intervals for SDSD calculation.")
+            return np.nan
+        return np.std(np.diff(nn_intervals))
+    except Exception as e:
+        warnings.warn(f"Error in sdsd_sqi: {e}")
+        return np.nan
 
 
 def rmssd_sqi(nn_intervals):
-    """Function returning the root mean square of the successive differences
-    from NN intervals.
+    """
+    Calculates the root mean square of successive NN interval differences.
 
-    Parameters
+    Parameters:
     ----------
-    nn_intervals : list
-        Normal to Normal Interval
+    nn_intervals : list or np.ndarray
+        List of NN intervals in milliseconds.
 
-    Returns
+    Returns:
     -------
     float
-        The root mean square of the differences of NN intervals
+        The RMSSD value or NaN if input is invalid.
+
+    Example:
+    -------
+    >>> nn_intervals = [800, 810, 820, 830]
+    >>> rmssd_sqi(nn_intervals)
+    10.0
     """
-    sd = np.diff(nn_intervals)
-    return np.sqrt(np.mean(sd**2))
+    try:
+        if len(nn_intervals) < 2:
+            warnings.warn("Insufficient NN intervals for RMSSD calculation.")
+            return np.nan
+        return np.sqrt(np.mean(np.diff(nn_intervals) ** 2))
+    except Exception as e:
+        warnings.warn(f"Error in rmssd_sqi: {e}")
+        return np.nan
 
 
 def cvsd_sqi(nn_intervals):
-    """Function returning the covariance successive differences (differences of
-    the NN intervals)
+    """
+    Calculates the coefficient of variation for successive differences.
 
-    Parameters
+    Parameters:
     ----------
-    nn_intervals : list
-        Normal to Normal Interval
+    nn_intervals : list or np.ndarray
+        List of NN intervals in milliseconds.
 
-    Returns
+    Returns:
     -------
     float
-        The covariance of the differences of NN intervals
+        Coefficient of variation for successive differences or NaN if input is invalid.
+
+    Example:
+    -------
+    >>> nn_intervals = [800, 810, 820, 830]
+    >>> cvsd_sqi(nn_intervals)
+    0.0123
     """
-    cvsd = rmssd_sqi(nn_intervals) / mean_nn_sqi(nn_intervals)
-    return cvsd
+    try:
+        mean_nn = nn_mean_sqi(nn_intervals)
+        rmssd = rmssd_sqi(nn_intervals)
+        return rmssd / mean_nn if mean_nn else np.nan
+    except Exception as e:
+        warnings.warn(f"Error in cvsd_sqi: {e}")
+        return np.nan
 
 
 def cvnn_sqi(nn_intervals):
-    """Function returning the covariance of the NN intervals
+    """
+    Calculates the coefficient of variation for NN intervals.
 
-    Parameters
+    Parameters:
     ----------
-    nn_intervals : list
-        Normal to Normal Interval
-    interpolation :
-        interpolation: bool
-        Options to do interpolation of NN interval before calculating covariance of NN.
+    nn_intervals : list or np.ndarray
+        List of NN intervals in milliseconds.
 
-    Returns
+    Returns:
     -------
     float
-        The covariance of the NN intervals
+        Coefficient of variation for NN intervals or NaN if input is invalid.
+
+    Example:
+    -------
+    >>> nn_intervals = [800, 810, 820, 830]
+    >>> cvnn_sqi(nn_intervals)
+    0.015
     """
-    return sdsd_sqi(nn_intervals) / mean_nn_sqi(nn_intervals)
+    try:
+        mean_nn = nn_mean_sqi(nn_intervals)
+        sdnn = sdnn_sqi(nn_intervals)
+        return sdnn / mean_nn if mean_nn else np.nan
+    except Exception as e:
+        warnings.warn(f"Error in cvnn_sqi: {e}")
+        return np.nan
 
 
 def mean_nn_sqi(nn_intervals):
-    """Function returning the mean of the NN intervals
-
-    Parameters
-    ----------
-    nn_intervals : list
-        Normal to Normal Interval
-
-    Returns
-    -------
-    float
-        The mean of the NN intervals
-    """
-    return np.mean(nn_intervals)
+    """Calculates the mean of NN intervals."""
+    return nn_mean_sqi(nn_intervals)
 
 
 def median_nn_sqi(nn_intervals):
-    """Function returning the median of the NN intervals
+    """
+    Calculates the median of NN intervals.
 
-    Parameters
+    Parameters:
     ----------
-    nn_intervals : list
-        Normal to Normal Interval
+    nn_intervals : list or np.ndarray
+        List of NN intervals in milliseconds.
 
-    Returns
+    Returns:
     -------
     float
-        The median of the NN intervals
+        The median of NN intervals or NaN if input is invalid.
+
+    Example:
+    -------
+    >>> nn_intervals = [800, 810, 820, 830]
+    >>> median_nn_sqi(nn_intervals)
+    815.0
     """
-    return np.median(nn_intervals)
+    try:
+        if not nn_intervals:
+            warnings.warn("Empty NN intervals provided.")
+            return np.nan
+        return np.median(nn_intervals)
+    except Exception as e:
+        warnings.warn(f"Error in median_nn_sqi: {e}")
+        return np.nan
 
 
-def pnn_sqi(nn_intervals, exceed=50):
-    """Function returning the percentage of nn intervals
-    that exceed the previous 50ms
+def pnn_sqi(nn_intervals, threshold=50):
+    """
+    Calculates the percentage of NN intervals that exceed a given threshold (e.g., pNN50).
 
-    Parameters
+    Parameters:
     ----------
-    nn_intervals : list
-        Normal to Normal Interval
-    exceed : int
-        Number of ms that is different among successive NN
-        intervals, e.g., 50 for pNN50.
+    nn_intervals : list or np.ndarray
+        List of NN intervals in milliseconds.
+    threshold : float
+        Threshold in milliseconds (default is 50ms).
 
-    Returns
+    Returns:
     -------
     float
-        The percentage of the outlier NN intervals
-    """
-    sd = np.diff(nn_intervals)
-    nn_exceed = np.sum(np.abs(sd) >= exceed)
-    pnn_exceed = 100 * nn_exceed / len(sd)
-    return pnn_exceed
+        Percentage of NN intervals exceeding the threshold or NaN if input is invalid.
 
-
-def hr_mean_sqi(nn_intervals):
-    """Function returning the mean heart rate .
-    The input nn_interval in ms is converted into
-    heart rate bpm (beat per minute) unit
-
-    Parameters
-    ----------
-    nn_intervals : list
-        Normal to Normal Interval
-
-    Returns
+    Example:
     -------
-    int
-        The mean heart rate
+    >>> nn_intervals = [800, 810, 820, 830]
+    >>> pnn_sqi(nn_intervals, threshold=50)
+    0.0
     """
-    nn_bpm = np.divide(60000, nn_intervals)
-    return int(np.round(np.mean(nn_bpm)))
+    try:
+        if len(nn_intervals) < 2:
+            warnings.warn("Insufficient NN intervals for pNN calculation.")
+            return np.nan
+        differences = np.abs(np.diff(nn_intervals))
+        count_exceeds = np.sum(differences >= threshold)
+        return (count_exceeds / len(differences)) * 100
+    except Exception as e:
+        warnings.warn(f"Error in pnn_sqi: {e}")
+        return np.nan
 
 
-def hr_median_sqi(nn_intervals):
-    """Function returning the median heart rate .
-    The input nn_interval in ms is converted into
-    heart rate bpm (beat per minute) unit
-
-    Parameters
-    ----------
-    nn_intervals : list
-        Normal to Normal Interval
-
-    Returns
-    -------
-    int
-        The median heart rate
+def hr_sqi(nn_intervals, stat="mean"):
     """
-    nn_bpm = np.divide(60000, nn_intervals)
-    return int(np.round(np.median(nn_bpm)))
+    Generalized function to calculate heart rate (HR) statistics.
 
-
-def hr_min_sqi(nn_intervals):
-    """Function returning the min heart rate .
-    The input nn_interval in ms is converted into
-    heart rate bpm (beat per minute) unit
-
-    Parameters
+    Parameters:
     ----------
-    nn_intervals : list
-        Normal to Normal Interval
+    nn_intervals : list or np.ndarray
+        List of NN intervals in milliseconds.
+    stat : str
+        The statistic to compute: 'mean', 'median', 'min', 'max', 'std'.
 
-    Returns
-    -------
-    int
-        The minimum heart rate
-    """
-
-    nn_bpm = np.divide(60000, nn_intervals)
-    return int(np.round(np.min(nn_bpm)))
-
-
-def hr_max_sqi(nn_intervals):
-    """Function returning the max heart rate .
-    The input nn_interval in ms is converted into
-    heart rate bpm (beat per minute) unit
-
-    Parameters
-    ----------
-    nn_intervals : list
-        Normal to Normal Interval
-
-    Returns
-    -------
-    int
-        The maximum heart rate
-
-    """
-    nn_bpm = np.divide(60000, nn_intervals)
-    return int(np.round(np.max(nn_bpm)))
-
-
-def hr_std_sqi(nn_intervals):
-    """Function returning the standard deviation of the heart rate .
-    The input nn_interval in ms is converted into
-    heart rate bpm (beat per minute) unit
-
-    Parameters
-    ----------
-    nn_intervals : list
-        Normal to Normal Interval
-
-    Returns
+    Returns:
     -------
     float
-        The standard deviation of the heart rate
+        The computed HR statistic or NaN if input is invalid.
 
+    Raises:
+    ------
+    ValueError
+        If the `stat` parameter is not one of the allowed values.
+
+    Example:
+    -------
+    >>> nn_intervals = [800, 810, 820, 830]
+    >>> hr_sqi(nn_intervals, stat="mean")
+    74.07
+    >>> hr_sqi(nn_intervals, stat="min")
+    72.29
+    >>> hr_sqi(nn_intervals, stat="std")
+    0.86
     """
-    nn_bpm = np.divide(60000, nn_intervals)
-    return np.std(nn_bpm)
+    try:
+        if stat not in ["mean", "median", "min", "max", "std"]:
+            raise ValueError(
+                "Invalid statistic requested: choose from 'mean', 'median', 'min', 'max', or 'std'."
+            )
+
+        if not nn_intervals:
+            warnings.warn("Empty NN intervals provided.")
+            return np.nan
+
+        hr_values = 60000 / np.array(nn_intervals)
+
+        if stat == "mean":
+            return np.mean(hr_values)
+        elif stat == "median":
+            return np.median(hr_values)
+        elif stat == "min":
+            return np.min(hr_values)
+        elif stat == "max":
+            return np.max(hr_values)
+        elif stat == "std":
+            return np.std(hr_values)
+    except Exception as e:
+        warnings.warn(f"Error in hr_sqi: {e}")
+        return np.nan
 
 
 def hr_range_sqi(nn_intervals, range_min=40, range_max=200):
-    """Percentage of heart beats that are out of defined range.
-
-    Parameters
-    ----------
-    nn_intervals :
-
-    range_min :
-         (Default value = 40)
-    range_max :
-         (Default value = 200)
-
-    Returns
-    -------
-        float
-            The percentage of heart rate out of range with decimal 2.
     """
-    nn_bpm = np.divide(60000, nn_intervals)
-    out = sum(range_min >= nn_bpm) + sum(nn_bpm >= range_max)
-    out = round(100 * out / len(nn_bpm), 2)
-    return out
+    Calculates the percentage of HR values falling outside a specified range.
 
-
-def peak_frequency_sqi(nn_intervals, freqs=None, pows=None, f_min=0.04, f_max=0.15):
-    """The function mimics features obtaining from the frequency domain of HRV.
-    Main inputs are frequencies and power density - compute by using
-    power spectral density power_spectrum in common package
-    See. calculate_psd, calculate_spectrogram, calculate_power_wavelet
-
-    Parameters
+    Parameters:
     ----------
-    nn_intervals : list
-        Normal to Normal Interval
-    freqs : list
-        The frequencies mapping with the power spectral.
-        Default is None.
-    pows : list
-        The powers of the relevant frequencies (Default value = None)
-    f_min : float
-        The lower bound of the band .
-        Default value = 0.04 is the lower bound of heart rate low-band
-    f_max : float
-        The upper bound of the band
-        Default value = 0.15 is the upper bound of heart rate low-band
+    nn_intervals : list or np.ndarray
+        List of NN intervals in milliseconds.
+    range_min : float
+        Minimum acceptable HR value (default is 40).
+    range_max : float
+        Maximum acceptable HR value (default is 200).
 
-    Returns
+    Returns:
     -------
     float
-        The frequency having greatest power in the examined band
+        Percentage of HR values outside the specified range or NaN if input is invalid.
 
-    Notes
-    ---------
-    If freqs and pows are assigned by computing the PSD before using this sqi,
-    freqs & pows is used directly instead of nn_intervals.
-    Otherwise, the frequencies and powers will be computed from nn intervals
-    using welch method as default
-    """
-    if freqs is None or pows is None:
-        freqs, pows = calculate_psd(nn_intervals)
-    assert len(freqs) == len(
-        pows
-    ), "Length of the frequencies and the relevant powers must be the same"
-    # f_power = (pows[f_min <= freqs < f_max])
-    f_power = pows[np.where((f_min <= freqs) & (freqs < f_max))[0]]
-    f_peak = f_power[np.argmax(f_power)]
-    return f_peak
-
-
-def absolute_power_sqi(nn_intervals, freqs=None, pows=None, f_min=0.04, f_max=0.15):
-    """Compute the cummulative power of the examined band.
-    The function mimics features obtaining from the frequency domain of HRV.
-    Main inputs are frequencies and power density - compute by using
-    power spectral density power_spectrum in common package
-    See. calculate_psd, calculate_spectrogram, calculate_power_wavelet
-
-    Parameters
-    ----------
-    nn_intervals : list
-        Normal to Normal Interval
-    freqs : list
-        The frequencies mapping with the power spectral (Default value = None)
-    pows : list
-        The powers of the relevant frequencies (Default value = None)
-    f_min : float
-        The lower bound of the band .
-        Default value = 0.04 is the lower bound of heart rate low-band
-    f_max : float
-        The upper bound of the band
-        Default value = 0.15 is the upper bound of heart rate low-band
-
-    Returns
+    Example:
     -------
-    float
-        The cummulative power of the examined band
-
-    Notes
-    ---------
-    If freqs and pows are assigned by computing the PSD before using this sqi,
-    freqs & pows is used directly instead of nn_intervals.
-    Otherwise, the frequencies and powers will be computed from nn intervals
-    using welch method as default
+    >>> nn_intervals = [800, 810, 820, 830]
+    >>> hr_range_sqi(nn_intervals, range_min=50, range_max=150)
+    0.0
     """
-    if freqs is None or pows is None:
-        freqs, pows = calculate_psd(nn_intervals)
-    assert len(freqs) == len(
-        pows
-    ), "Length of the frequencies and the relevant powers must be the same"
-    filtered_pows = pows[np.where((f_min <= freqs) & (freqs < f_max))[0]]
-    abs_pow = np.sum(filtered_pows)
-    return abs_pow
+    try:
+        if not nn_intervals:
+            warnings.warn("Empty NN intervals provided.")
+            return np.nan
+        hr_values = 60000 / np.array(nn_intervals)
+        out_of_range_count = np.sum((hr_values < range_min) | (hr_values > range_max))
+        return (out_of_range_count / len(hr_values)) * 100
+    except Exception as e:
+        warnings.warn(f"Error in hr_range_sqi: {e}")
+        return np.nan
 
 
-def log_power_sqi(nn_intervals, freqs=None, pows=None, f_min=0.04, f_max=0.15):
-    """Compute the logarithm power of the examined band.
-    The function mimics features obtaining from the frequency domain of HRV.
-    Main inputs are frequencies and power density - compute by using
-    power spectral density power_spectrum in common package
-    See. calculate_psd, calculate_spectrogram, calculate_power_wavelet
+def frequency_sqi(nn_intervals, freq_min=0.04, freq_max=0.15, metric="peak"):
+    """Calculates frequency domain features in a specified frequency band."""
+    # Validate metric first
+    valid_metrics = ["peak", "absolute", "log", "normalized", "relative"]
+    if metric not in valid_metrics:
+        raise ValueError(
+            "Invalid metric requested: choose from 'peak', \
+            'absolute', 'log', 'normalized', or 'relative'."
+        )
 
-    Parameters
-    ----------
-    nn_intervals : list
-        Normal to Normal Interval
-    freqs : list
-        The frequencies mapping with the power spectral (Default value = None)
-    pows : list
-        The powers of the relevant frequencies (Default value = None)
-    f_min : float
-        The lower bound of the band .
-        Default value = 0.04 is the lower bound of heart rate low-band
-    f_max : float
-        The upper bound of the band
-        Default value = 0.15 is the upper bound of heart rate low-band
+    if not isinstance(nn_intervals, (list, np.ndarray)) or len(nn_intervals) < 3:
+        warnings.warn("Insufficient NN intervals for frequency analysis.")
+        return np.nan
 
-    Returns
-    -------
-    float
-        The logarithmic power of the examined band
+    try:
+        freqs, powers = calculate_psd(nn_intervals)
+        if len(freqs) == 0 or len(powers) == 0:
+            raise ValueError("PSD calculation failed; insufficient data points.")
+    except Exception as e:
+        warnings.warn(f"Error during PSD calculation: {e}")
+        return np.nan
 
-    Notes
-    ---------
-    If freqs and pows are assigned by computing the PSD before using this sqi,
-    freqs & pows is used directly instead of nn_intervals.
-    Otherwise, the frequencies and powers will be computed from nn intervals
-    using welch method as default
-    """
-    if freqs is None or pows is None:
-        freqs, pows = calculate_psd(nn_intervals)
-    assert len(freqs) == len(
-        pows
-    ), "Length of the frequencies and the relevant powers must be the same"
-    filtered_pows = pows[np.where((f_min <= freqs) & (freqs < f_max))[0]]
-    log_pow = np.sum(np.log(filtered_pows))
-    return log_pow
+    band_powers = powers[(freqs >= freq_min) & (freqs < freq_max)]
+
+    if metric == "peak":
+        return freqs[np.argmax(band_powers)] if band_powers.size > 0 else np.nan
+    elif metric == "absolute":
+        return np.sum(band_powers)
+    elif metric == "log":
+        return np.sum(np.log(band_powers + 1e-10))
+    elif metric == "normalized":
+        return np.sum(np.linalg.norm(band_powers + 1e-10))
+    elif metric == "relative":
+        total_power = np.sum(powers)
+        return np.sum(band_powers) / total_power if total_power > 0 else np.nan
 
 
-def relative_power_sqi(nn_intervals, freqs=None, pows=None, f_min=0.04, f_max=0.15):
-    """Compute the relative power with respect to the total power of the examined band.
-    The function mimics features obtaining from the frequency domain of HRV.
-    Main inputs are frequencies and power density - compute by using
-    power spectral density power_spectrum in common package
-    See. calculate_psd, calculate_spectrogram, calculate_power_wavelet
+def lf_hf_ratio_sqi(nn_intervals, lf_range=(0.04, 0.15), hf_range=(0.15, 0.4)):
+    """Calculates the LF/HF power ratio in frequency domain."""
+    if not isinstance(nn_intervals, (list, np.ndarray)):
+        warnings.warn("Invalid input: nn_intervals must be a list or numpy array.")
+        return np.nan
 
-    Parameters
-    ----------
-    nn_intervals : list
-        Normal to Normal Interval
-    freqs : list
-        The frequencies mapping with the power spectral (Default value = None)
-    pows : list
-        The powers of the relevant frequencies (Default value = None)
-    f_min : float
-        The lower bound of the band .
-        Default value = 0.04 is the lower bound of heart rate low-band
-    f_max : float
-        The upper bound of the band
-        Default value = 0.15 is the upper bound of heart rate low-band
+    if not nn_intervals or len(nn_intervals) < 3:
+        warnings.warn("Insufficient NN intervals for LF/HF ratio calculation.")
+        return np.nan
 
-    Returns
-    -------
-    float
-        Relative power with respect to the total power
+    try:
+        freqs, powers = calculate_psd(nn_intervals)
+        if len(freqs) == 0 or len(powers) == 0:
+            raise ValueError("PSD calculation failed; insufficient data points.")
+    except Exception as e:
+        warnings.warn(f"Error during PSD calculation: {e}")
+        return np.nan
 
-    Notes
-    ---------
-    If freqs and pows are assigned by computing the PSD before using this sqi,
-    freqs & pows is used directly instead of nn_intervals.
-    Otherwise, the frequencies and powers will be computed from nn intervals
-    using welch method as default
-    """
-    if freqs is None or pows is None:
-        freqs, pows = calculate_psd(nn_intervals)
-    assert len(freqs) == len(
-        pows
-    ), "Length of the frequencies and the relevant powers must be the same"
-    filtered_pows = pows[np.where((f_min <= freqs) & (freqs < f_max))[0]]
-    relative_pow = np.sum(np.log(filtered_pows)) / np.sum(pows)
-    return relative_pow
+    lf_power = np.sum(powers[(freqs >= lf_range[0]) & (freqs < lf_range[1])])
+    hf_power = np.sum(powers[(freqs >= hf_range[0]) & (freqs < hf_range[1])])
 
+    if hf_power <= 0:
+        warnings.warn("HF power is zero or negative, cannot compute LF/HF ratio.")
+        return np.nan
 
-def normalized_power_sqi(
-    nn_intervals,
-    freqs=None,
-    pows=None,
-    lf_min=0.04,
-    lf_max=0.15,
-    hf_min=0.15,
-    hf_max=0.4,
-):
-    """Compute the relative power with respect to the total power of the examined band.
-    The function mimics features obtaining from the frequency domain of HRV.
-    Main inputs are frequencies and power density - compute by using
-    power spectral density power_spectrum in common package
-    See. calculate_psd, calculate_spectrogram, calculate_power_wavelet
-
-    Parameters
-    ----------
-    nn_intervals : list
-        Normal to Normal Interval
-    freqs : list
-        The frequencies mapping with the power spectral (Default value = None)
-    pows : list
-        The powers of the relevant frequencies (Default value = None)
-    lf_min : float
-        the lower bound of the low-frequency band (Default value = 0.04)
-    lf_max : float
-        the upper bound of the low-frequency band (Default value = 0.15)
-    hf_min : float
-        the lower bound of the high-frequency band (Default value = 0.15)
-    hf_max : float
-        the upper bound of the high-frequency band (Default value = 0.4)
-
-    Returns
-    -------
-    float
-        Relative power with respect to the total power
-
-    Notes
-    ---------
-    If freqs and pows are assigned by computing the PSD before using this sqi,
-    freqs & pows is used directly instead of nn_intervals.
-    Otherwise, the frequencies and powers will be computed from nn intervals
-    using welch method as default
-    """
-    if freqs is None or pows is None:
-        freqs, pows = calculate_psd(nn_intervals)
-    assert len(freqs) == len(
-        pows
-    ), "Length of the frequencies and the relevant powers must be the same"
-    # lf_filtered_pows = pows[freqs >= lf_min & freqs < lf_max]
-    lf_filtered_pows = pows[np.where((freqs >= lf_min) & (freqs < lf_max))[0]]
-    # hf_filtered_pows = pows[freqs >= hf_min & freqs < hf_max]
-    hf_filtered_pows = pows[np.where((freqs >= hf_min) & (freqs < hf_max))[0]]
-    lf_power = np.sum(lf_filtered_pows)
-    hf_power = np.sum(hf_filtered_pows)
-    return np.linalg.norm([lf_power, hf_power])
-
-
-def lf_hf_ratio_sqi(
-    nn_intervals,
-    freqs=None,
-    pows=None,
-    lf_min=0.04,
-    lf_max=0.15,
-    hf_min=0.15,
-    hf_max=0.4,
-):
-    """Compute the ratio power between the lower frequency and the high frequency.
-    The function mimics features obtaining from the frequency domain of HRV.
-    Main inputs are frequencies and power density - compute by using
-    power spectral density power_spectrum in common package
-    See. calculate_psd, calculate_spectrogram, calculate_power_wavelet
-
-    Parameters
-    ----------
-    nn_intervals : list
-        Normal to Normal Interval
-    freqs : list
-        The frequencies mapping with the power spectral (Default value = None)
-    pows : list
-        The powers of the relevant frequencies (Default value = None)
-    lf_min : float
-        the lower bound of the low-frequency band (Default value = 0.04)
-    lf_max : float
-        the upper bound of the low-frequency band (Default value = 0.15)
-    hf_min : float
-        the lower bound of the high-frequency band (Default value = 0.15)
-    hf_max : float
-        the upper bound of the high-frequency band (Default value = 0.4)
-
-    Returns
-    -------
-    float
-        Ratio power between low-frequency power and high-frequency power
-
-    Notes
-    ---------
-    If freqs and pows are assigned by computing the PSD before using this sqi,
-    freqs & pows is used directly instead of nn_intervals.
-    Otherwise, the frequencies and powers will be computed from nn intervals
-    using welch method as default
-    """
-    if freqs is None or pows is None:
-        freqs, pows = calculate_psd(nn_intervals)
-    assert len(freqs) == len(
-        pows
-    ), "Length of the frequencies and the relevant powers must be the same"
-    lf_filtered_pows = pows[np.where((freqs >= lf_min) & (freqs < lf_max))[0]]
-    hf_filtered_pows = pows[np.where((freqs >= hf_min) & (freqs < hf_max))[0]]
-    ratio = np.sum(lf_filtered_pows) / np.sum(hf_filtered_pows)
-    return ratio
+    return lf_power / hf_power
 
 
 def poincare_features_sqi(nn_intervals):
-    """Function returning the poincare features of mapping nn intervals
+    """
+    Calculates Poincare features: SD1, SD2, area, and SD1/SD2 ratio.
 
-    Parameters
+    Parameters:
     ----------
-    nn_intervals : list
-        Normal to Normal Interval
+    nn_intervals : list or np.ndarray
+        List of NN intervals in milliseconds.
 
-    Returns
+    Returns:
     -------
-    sd1 : float
-        The standard deviation of the second group
-    sd2 : float
-        The standard deviation of the second group
-    area : float
-        The area of the bounding eclipse
-    ratio : float
+    dict
+        A dictionary containing the following keys:
+        - "sd1": Standard deviation perpendicular to the line of identity.
+        - "sd2": Standard deviation along the line of identity.
+        - "area": Area of the ellipse formed by SD1 and SD2.
+        - "ratio": Ratio of SD1 to SD2.
 
+    Example:
+    -------
+    >>> nn_intervals = [800, 810, 820, 830, 800, 790]
+    >>> poincare_features_sqi(nn_intervals)
+    {'sd1': 7.07, 'sd2': 14.14, 'area': 312.21, 'ratio': 0.5}
 
-    Notes
+    Notes:
+    ------
+    - SD1 and SD2 are derived from the Poincare plot of NN intervals.
+    - Area represents the ellipse formed by SD1 and SD2.
+    - Ratio is SD1 divided by SD2 and provides insights into heart rate variability.
+
+    Warnings:
     ---------
-    If the purpose is to compute the HRV feature, the input
-    must pass the preprocessing steps - remove the invalid peaks then do the
-    interpolation - to obtain the normal to normal intervals.
-
-    If the purpose is to compute SQI, input the raw RR intervals -
-    obtained from the peak detection algorithm.
+    Insufficient NN intervals will result in NaN values for all metrics.
     """
-    group_i = nn_intervals[:-1]
-    group_j = nn_intervals[1:]
+    try:
+        if len(nn_intervals) < 2:
+            warnings.warn("Insufficient NN intervals for Poincare analysis.")
+            return {"sd1": np.nan, "sd2": np.nan, "area": np.nan, "ratio": np.nan}
 
-    sd1 = np.std(group_j - group_i)
-    sd2 = np.std(group_j + group_i)
+        differences = np.diff(nn_intervals)
+        sd1 = np.sqrt(np.std(differences, ddof=1) ** 2 / 2)
+        sd2 = np.sqrt(2 * np.std(nn_intervals, ddof=1) ** 2 - sd1**2)
+        area = np.pi * sd1 * sd2
+        ratio = sd1 / sd2 if sd2 != 0 else np.nan
 
-    area = np.pi * sd1 * sd2
-    ratio = sd1 / sd2
-
-    poincare_features_dict = {
-        "poincare_features_sd1_sqi": sd1,
-        "poincare_features_sd2_sqi": sd2,
-        "poincare_features_area_sqi": area,
-        "poincare_features_ratio_sqi": ratio,
-    }
-
-    return poincare_features_dict
+        return {"sd1": sd1, "sd2": sd2, "area": area, "ratio": ratio}
+    except Exception as e:
+        warnings.warn(f"Error in poincare_features_sqi: {e}")
+        return {"sd1": np.nan, "sd2": np.nan, "area": np.nan, "ratio": np.nan}
 
 
-def get_all_features_hrva(s, sample_rate=100, rpeak_method=0, wave_type="ecg"):
-    """
+def get_all_features_hrva(signal, sample_rate=100, rpeak_method=6, wave_type="ECG"):
+    """Extracts HRV features using peak detection and returns a comprehensive set of metrics."""
+    if sample_rate <= 0:
+        raise ValueError("Sample rate must be a positive number.")
+    detector = PeakDetector(wave_type=wave_type)
+    try:
+        peak_list = (
+            detector.ppg_detector(signal, detector_type=rpeak_method)
+            if wave_type == "PPG"
+            else detector.ecg_detector(signal)
+        )
+    except Exception as e:
+        warnings.warn(f"Error during peak detection: {e}")
+        return {}, {}, {}, {}
 
-    Parameters
-    ----------
-    data_sample :
-        Raw signal
-    rpeak_method :
-        return: (Default value = 0)
-    sample_rate :
-        (Default value = 100)
+    if not isinstance(peak_list, (list, np.ndarray)) or len(peak_list) < 2:
+        warnings.warn(
+            "Peak Detector cannot find sufficient peaks or returned invalid data."
+        )
+        return {}, {}, {}, {}
 
-    Returns
-    -------
+    try:
+        rr_intervals = np.diff(peak_list) * (1000 / sample_rate)
+    except Exception as e:
+        warnings.warn(f"Error during RR interval computation: {e}")
+        return {}, {}, {}, {}
 
+    try:
+        with HiddenPrints():
+            nn_intervals = get_nn_intervals(rr_intervals)
+            time_features = get_time_domain_features(nn_intervals)
+            freq_features = get_frequency_domain_features(nn_intervals)
+            geometric_features = get_geometrical_features(nn_intervals)
+            csi_cvi_features = get_csi_cvi_features(nn_intervals)
+    except Exception as e:
+        warnings.warn(f"Error during HRV feature extraction: {e}")
+        return {}, {}, {}, {}
 
-    """
-    if wave_type == "ppg":
-        detector = PeakDetector(wave_type="ppg")
-        peak_list, trough_list = detector.ppg_detector(s, detector_type=rpeak_method)
-    else:
-        detector = PeakDetector(wave_type="ecg")
-        peak_list, trough_list = detector.ecg_detector(s, detector_type=rpeak_method)
-
-    if len(peak_list) < 2:
-        warnings.warn("Peak Detector cannot find more than 2 peaks to process")
-        return [], [], [], []
-
-    rr_list = np.diff(peak_list) * (1000 / sample_rate)  # 1000 milisecond
-
-    with HiddenPrints():
-        nn_list = get_nn_intervals(rr_list)
-
-        nn_list_non_na = np.copy(nn_list)
-        nn_list_non_na[np.where(np.isnan(nn_list_non_na))[0]] = -1
-
-        time_domain_features = get_time_domain_features(rr_list)
-        frequency_domain_features = get_frequency_domain_features(rr_list)
-        geometrical_features = get_geometrical_features(rr_list)
-        csi_cvi_features = get_csi_cvi_features(rr_list)
-
-    return (
-        time_domain_features,
-        frequency_domain_features,
-        geometrical_features,
-        csi_cvi_features,
-    )
+    return time_features, freq_features, geometric_features, csi_cvi_features

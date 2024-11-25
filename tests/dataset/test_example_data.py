@@ -1,4 +1,3 @@
-import pytest
 from vital_sqi.dataset import load_ppg, load_ecg
 from vital_sqi.data.signal_io import SignalSQI
 

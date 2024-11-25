@@ -5,6 +5,7 @@ from dash.dependencies import Input, Output, State
 from vital_sqi.app.util.parsing import parse_data
 from vital_sqi.app.app import app
 from vital_sqi.app.views import dashboard1, dashboard2, dashboard3
+import logging
 
 # the style arguments for the sidebar. We use position:fixed and a fixed width
 SIDEBAR_STYLE = {
@@ -139,12 +140,17 @@ def display_page(pathname):
     State("dataframe", "data"),
 )
 def update_output(content, filename, last_modified, state_data):
-    if content is not None:
-        df = parse_data(content, filename)
-        return [df, False, False, False]
-    elif state_data is not None:
-        return [state_data, False, False, False]
-    return [None, True, True, True]
+    try:
+        if content is not None:
+            df = parse_data(content, filename)
+            if isinstance(df, dict):  # Ensure valid data is returned
+                return [df, False, False, False]
+        if state_data is not None:
+            return [state_data, False, False, False]
+        return [None, True, True, True]
+    except Exception as e:
+        print(f"Error in update_output: {e}")
+        return [None, True, True, True]
 
 
 # Load rule set
