@@ -1,49 +1,52 @@
-Welcome to vital_sqi's Documentation!
+Welcome to vital_sqi's documentation!
 =====================================
 
 .. image:: ./_static/imgs/logo.png
    :alt: Vital_SQI logo
-   :align: center
 
 .. note::
    Vital_SQI is a Python library designed for analyzing physiological signals (like ECG and PPG) and computing Signal Quality Indices (SQI).
 
+
 The code of the project is on `GitHub <https://github.com/Oucru-Innovations/vital-sqi>`_.
 
-🚀 Getting Started
-------------------
+Getting Started
+---------------
 .. toctree::
    :maxdepth: 2
-   :caption: Basics
 
-   usage/installation       💻 Installation Guide
-   usage/introduction       📖 Introduction
-   usage/quickstart         ⚡ Quickstart Tutorial
-   usage/contributions      🤝 Contributing to Vital_SQI
-   usage/development        🔧 Development Guide
+   usage/installation
+   usage/introduction
+   usage/contributions
+   usage/development
+   usage/quickstart
 
-🛠️ Tutorials and Examples
--------------------------
+Data Manipulation
+-----------------
 .. toctree::
    :maxdepth: 2
-   :caption: Tutorials
 
-   _examples/notebooks/Data_manipulation_ECG_PPG   🛠️ Data Manipulation with ECG & PPG
-   _examples/notebooks/SQI_pipeline               🔄 Building SQI Pipelines
+   _examples/notebooks/Data_manipulation_ECG_PPG
 
-📚 Documentation
-----------------
+Pipeline
+--------
 .. toctree::
    :maxdepth: 2
-   :caption: API Reference
 
-   docstring/modules                📘 Module Overview
-   docstring/vital_sqi.pipeline     🔄 Pipeline Module
-   docstring/vital_sqi.sqi          📊 SQI Module
+   _examples/notebooks/SQI_pipeline
 
-🔍 Indices and Tables
-=====================
+Documentation
+-------------
+.. toctree::
+   :maxdepth: 2
 
-* :ref:`genindex` - General Index
-* :ref:`modindex` - Module Index
-* :ref:`search`   - Search
+   docstring/modules
+   docstring/vital_sqi.pipeline
+   docstring/vital_sqi.sqi
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`

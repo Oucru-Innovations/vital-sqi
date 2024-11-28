@@ -21,7 +21,7 @@ class SignalSQI:
 
     def __init__(
         self,
-        wave_type=None,
+        wave_type="ECG",
         signals=None,
         sampling_rate=None,
         start_datetime=None,
@@ -56,7 +56,7 @@ class SignalSQI:
 
     def __setattr__(self, name, value):
         if name == "wave_type":
-            if value not in ("ECG", "PPG"):
+            if value is not None and value not in ("ECG", "PPG"):
                 raise ValueError("Expected wave_type to be either 'ECG' or 'PPG'.")
         elif name == "signals":
             if not isinstance(value, pd.DataFrame):

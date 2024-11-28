@@ -301,6 +301,8 @@ def parse_rule(name, source):
     except KeyError:
         logging.error(f"SQI {name} not found in the source.")
         raise ValueError(f"SQI {name} not found.")
+    if "def" not in sqi:
+        raise KeyError("'def' key is missing in the rule definition.")
 
     return update_rule(sqi["def"], is_update=False)
 
