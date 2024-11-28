@@ -3,7 +3,6 @@ Welcome to vital_sqi's Documentation!
 
 .. image:: ./_static/imgs/logo.png
    :alt: Vital_SQI logo
-   :width: 200px
    :align: center
 
 .. note::
