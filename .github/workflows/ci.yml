@@ -44,7 +44,7 @@ jobs:
           DISPLAY: :99.0
         run: |
           Xvfb :99 & sleep 3
-          pytest --cov=vital_sqi --cov-config=.coveragerc --cov-report=xml --cov-report=term-missing tests
+          pytest --cov=vital_sqi --cov-config=.coveragerc --cov-report=xml:coverage.xml --cov-report=term-missing tests
       
       - name: Debug coverage files
         run: |
@@ -58,3 +58,8 @@ jobs:
           coveralls-endpoint: https://coveralls.io
           path-to-lcov: coverage.xml
           # path-to-lcov: ./tests 
+      - name: Debug coverage paths
+        run: |
+          cat coverage.xml | grep filename
+          echo "PWD: $(pwd)"
+          find .

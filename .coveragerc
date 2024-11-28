@@ -1,3 +1,9 @@
 [run]
+source = vital_sqi
 omit =
     vital_sqi/app/*
+
+[paths]
+source =
+    .
+    */vital_sqi
