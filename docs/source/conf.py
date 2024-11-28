@@ -60,6 +60,11 @@ html_static_path = ['_static']
 # Substitute project name into .rst files when |project_name| is used
 rst_epilog = '.. |project_name| replace:: %s' % project
 
+# Add CSS files
+html_css_files = [
+    'sidebar.css',
+]
+
 
 # -- Extensions configuration ------------------------------------------------
 

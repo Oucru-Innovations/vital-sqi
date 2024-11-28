@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 from scipy import signal
+from vitalDSP.utils.synthesize_data import generate_ecg_signal
 from vital_sqi.sqi.rpeaks_sqi import (
     ectopic_sqi,
     correlogram_sqi,
@@ -70,6 +71,17 @@ class TestRPeakSQI:
         ):
             assert np.isnan(ectopic_sqi([], sample_rate=sample_rate))
 
+        sfecg = 256
+        N = 100
+        Anoise = 0.05
+        hrmean = 70
+        ecg_signal = generate_ecg_signal(sfecg=sfecg, N=N, Anoise=Anoise, hrmean=hrmean)
+        for rule_index in range(1, 4):
+            result = ectopic_sqi(
+                ecg_signal, sample_rate=sfecg, wave_type="ECG", rule_index=rule_index
+            )
+            assert np.isreal(result)
+
     def test_correlogram_sqi(self):
         """Test the correlogram_sqi function."""
         # Create a simulated signal
@@ -88,11 +100,10 @@ class TestRPeakSQI:
         with pytest.warns(
             UserWarning, match="Signal length is too short for the specified time lag"
         ):
-            assert (
+            assert np.isnan(
                 correlogram_sqi(
                     short_signal, sample_rate=sample_rate, time_lag=3, n_selection=3
                 )
-                == []
             )
 
         # Test with flat signal (no peaks)
@@ -101,12 +112,19 @@ class TestRPeakSQI:
             UserWarning,
             # match="No peaks detected in the autocorrelation function."
         ):
-            assert (
+            assert np.isnan(
                 correlogram_sqi(
                     flat_signal, sample_rate=sample_rate, time_lag=3, n_selection=3
                 )
-                == []
             )
+
+        sfecg = 256
+        N = 100
+        Anoise = 0.05
+        hrmean = 70
+        ecg_signal = generate_ecg_signal(sfecg=sfecg, N=N, Anoise=Anoise, hrmean=hrmean)
+        result = correlogram_sqi(ecg_signal, sample_rate=sfecg, wave_type="ECG")
+        assert result is not None
 
     def test_interpolation_sqi(self, valid_signal):
         """Test the interpolation_sqi function."""

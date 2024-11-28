@@ -7,7 +7,7 @@ with open('README.md') as f:
 
 setup(
     name = 'vitalsqi_toolkit',
-    version = '1.0.1',
+    version = '1.0.2',
     packages = find_packages(include = ["vital_sqi", "vital_sqi.*"]),
     description = "Signal quality control pipeline for electrocardiogram and "
                 "photoplethysmogram",

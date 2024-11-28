@@ -55,8 +55,9 @@ class TestHRVSQIs:
         assert np.isnan(sdsd_sqi(["invalid_input"]))
 
         # # Test with invalid input
-        # with pytest.raises(ValueError, match="diff requires input that is at least one dimensional"):
-        #     sdsd_sqi("invalid_input")
+        with pytest.warns(UserWarning):
+            res = sdsd_sqi("invalid_input")
+            assert np.isnan(res)  # Ensure the function returns NaN for invalid inputs
 
     def test_rmssd_sqi(self, valid_nn_intervals, short_nn_intervals):
         # Test with valid NN intervals
@@ -73,14 +74,21 @@ class TestHRVSQIs:
         assert np.isnan(rmssd_sqi(["invalid_input"]))
 
         # Test with invalid input
-        # with pytest.raises(ValueError, match="diff requires input that is at least one dimensional"):
-        #     rmssd_sqi("invalid_input")
+        with pytest.warns(UserWarning):
+            res = rmssd_sqi("invalid_input")
+            assert np.isnan(res)  # Ensure the function returns NaN for invalid inputs
 
     def test_cvsd_sqi(self, valid_nn_intervals):
         assert cvsd_sqi(valid_nn_intervals) == pytest.approx(0.01994, rel=1e-1)
+        with pytest.warns(UserWarning):
+            res = cvsd_sqi("invalid_input")
+            assert np.isnan(res)  # Ensure the function returns NaN for invalid inputs
 
     def test_cvnn_sqi(self, valid_nn_intervals):
         assert cvnn_sqi(valid_nn_intervals) == pytest.approx(0.0182, rel=1e-1)
+        with pytest.warns(UserWarning):
+            res = cvnn_sqi("invalid_input")
+            assert np.isnan(res)  # Ensure the function returns NaN for invalid inputs
 
     def test_median_nn_sqi(self, valid_nn_intervals, empty_nn_intervals):
         assert median_nn_sqi(valid_nn_intervals) == pytest.approx(810, rel=1e1)
@@ -91,6 +99,9 @@ class TestHRVSQIs:
             100.0, rel=1e-2
         )
         assert np.isnan(pnn_sqi(short_nn_intervals))
+        with pytest.warns(UserWarning):
+            res = pnn_sqi("invalid_input")
+            assert np.isnan(res)  # Ensure the function returns NaN for invalid inputs
 
     def test_hr_sqi(self, valid_nn_intervals):
         assert hr_sqi(valid_nn_intervals, stat="mean") == pytest.approx(74.26, rel=1e-2)
@@ -147,6 +158,70 @@ class TestHRVSQIs:
             )
         )
 
+        # Test all metrics
+        length = 500
+        base_rate = 600
+        variability = 50
+        synthetic_nn_intervals = base_rate + np.random.randint(
+            -variability, variability, size=length
+        )
+        freq_min = 0.04
+        freq_max = 0.15
+        result_peak = frequency_sqi(
+            synthetic_nn_intervals, freq_min=freq_min, freq_max=freq_max, metric="peak"
+        )
+        assert result_peak >= 0 or np.isnan(result_peak)
+        result_absolute = frequency_sqi(
+            synthetic_nn_intervals,
+            freq_min=freq_min,
+            freq_max=freq_max,
+            metric="absolute",
+        )
+        assert result_absolute >= 0 or np.isnan(result_absolute)
+        result_log = frequency_sqi(
+            synthetic_nn_intervals, freq_min=freq_min, freq_max=freq_max, metric="log"
+        )
+        assert result_log >= 0 or np.isnan(result_log)
+        result_normalized = frequency_sqi(
+            synthetic_nn_intervals,
+            freq_min=freq_min,
+            freq_max=freq_max,
+            metric="normalized",
+        )
+        assert result_normalized >= 0 or np.isnan(result_normalized)
+        result_relative = frequency_sqi(
+            synthetic_nn_intervals,
+            freq_min=freq_min,
+            freq_max=freq_max,
+            metric="relative",
+        )
+        assert result_relative >= 0 or np.isnan(result_relative)
+
+    def generate_nn_intervals(self, length=500, base_rate=600, variability=50):
+        """
+        Generate synthetic NN intervals mimicking heart rate variability.
+
+        Parameters:
+        ----------
+        length : int
+            Number of intervals to generate.
+        base_rate : int
+            Base NN interval in milliseconds.
+        variability : int
+            Maximum variability in NN interval.
+
+        Returns:
+        -------
+        list
+            A list of synthetic NN intervals.
+        """
+        np.random.seed(42)  # For reproducibility
+        # Generate random variations around the base rate
+        nn_intervals = base_rate + np.random.randint(
+            -variability, variability, size=length
+        )
+        return nn_intervals.tolist()
+
     def test_lf_hf_ratio_sqi(self, valid_nn_intervals, empty_nn_intervals):
         """Test LF/HF ratio calculation."""
         # Valid case
@@ -181,6 +256,23 @@ class TestHRVSQIs:
             )
         )
 
+        length = 500
+        base_rate = 600
+        variability = 50
+        synthetic_nn_intervals = base_rate + np.random.randint(
+            -variability, variability, size=length
+        )
+        ratio = lf_hf_ratio_sqi(
+            synthetic_nn_intervals, lf_range=(1e-3, 1e3), hf_range=(1e-4, 1e4)
+        )
+        print(ratio)
+        assert not np.isnan(ratio)
+
+        very_high_hf_ratio = lf_hf_ratio_sqi(
+            synthetic_nn_intervals, lf_range=(0.5, 1.0), hf_range=(10.0, 20.0)
+        )
+        assert np.isnan(very_high_hf_ratio)
+
     def test_poincare_features_sqi(self, valid_nn_intervals, short_nn_intervals):
         features = poincare_features_sqi(valid_nn_intervals)
         assert features["sd1"] >= 0
@@ -190,22 +282,23 @@ class TestHRVSQIs:
         features = poincare_features_sqi(short_nn_intervals)
         for key in features:
             assert np.isnan(features[key])
+        with pytest.warns(UserWarning):
+            res = poincare_features_sqi("invalid_input")
+            assert np.isnan(
+                res["sd1"]
+            )  # Ensure the function returns NaN for invalid inputs.res['sd1']
 
     def test_get_all_features_hrva(self):
         signal = np.sin(np.linspace(0, 2 * np.pi, 1000))  # Simulated signal
         sample_rate = 100
 
         # Valid case
-        features = (
-            get_all_features_hrva(signal, sample_rate=sample_rate)
-        )
+        features = get_all_features_hrva(signal, sample_rate=sample_rate)
         assert isinstance(features, dict)
 
         # Edge case: Invalid peak detection
         invalid_signal = [0] * 1000  # Flat signal, no peaks
-        features = (
-            get_all_features_hrva(invalid_signal, sample_rate=sample_rate)
-        )
+        features = get_all_features_hrva(invalid_signal, sample_rate=sample_rate)
         assert features == {}
 
         # Edge case: Invalid wave type
@@ -217,3 +310,70 @@ class TestHRVSQIs:
         # Edge case: Invalid sample rate
         with pytest.raises(Exception, match="Sample rate must be a positive number."):
             get_all_features_hrva(signal, sample_rate=-100)
+
+        with pytest.warns(UserWarning):
+            res = get_all_features_hrva("invalid_input")
+            assert len(res) == 0
+
+    def test_hr_sqi_invalid_stat(self, valid_nn_intervals):
+        result = hr_sqi(valid_nn_intervals, stat="invalid")
+        assert np.isnan(result), "Expected NaN for invalid stat input"
+
+    def test_hr_range_sqi_edge_cases(self):
+        nn_intervals = [800, 810, 820, 830]
+        assert hr_range_sqi(nn_intervals, range_min=900, range_max=1000) == 100.0
+        assert hr_range_sqi(nn_intervals, range_min=500, range_max=700) == 100.0
+
+    def test_frequency_sqi_empty_band_powers(self):
+        nn_intervals = [
+            800,
+            810,
+            820,
+            830,
+        ]  # Adjust as necessary to force empty band_powers
+        result = frequency_sqi(
+            nn_intervals, freq_min=0.4, freq_max=0.5, metric="absolute"
+        )
+        assert np.isnan(result)
+
+    def test_lf_hf_ratio_sqi_invalid_range(self, valid_nn_intervals):
+        result = lf_hf_ratio_sqi(
+            valid_nn_intervals, lf_range=(0.5, 0.4), hf_range=(0.15, 0.1)
+        )
+        assert np.isnan(result)
+
+    def test_poincare_features_sqi_insufficient_data(self):
+        features = poincare_features_sqi([800])  # Insufficient intervals
+        for key in features:
+            assert np.isnan(features[key])
+
+    def test_get_all_features_hrva_invalid_inputs(self):
+        signal = np.sin(np.linspace(0, 2 * np.pi, 1000))
+        sample_rate = 100
+
+        # Invalid peak detection method
+        result = get_all_features_hrva(
+            signal, sample_rate=sample_rate, rpeak_method=999
+        )
+        assert (
+            result is not None
+        ), "Expected a default dictionary for invalid peak detection method"
+
+        # Invalid sample rate
+        with pytest.raises(ValueError, match="Sample rate must be a positive number"):
+            get_all_features_hrva(signal, sample_rate=-100)
+
+    def test_get_all_features_hrva_rr_interval_failure(self):
+        invalid_signal = [0] * 1000  # Flat signal, no peaks
+        features = get_all_features_hrva(invalid_signal, sample_rate=100)
+        assert features == {}
+
+    def test_get_all_features_hrva_feature_extraction_failure(self):
+        invalid_signal = np.sin(np.linspace(0, 2 * np.pi, 10))  # Too short for HRV
+        features = get_all_features_hrva(invalid_signal, sample_rate=100)
+        assert features == {}
+
+    def test_get_all_features_hrva_final_block(self):
+        invalid_signal = [0] * 1000
+        features = get_all_features_hrva(invalid_signal, sample_rate=100)
+        assert features == {}

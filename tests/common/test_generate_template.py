@@ -1,5 +1,6 @@
 from scipy.special import erf
 
+
 class TestPPGDualDoubleFrequencyTemplate(object):
     def test_on_ppg_dual_double_frequency_template(self):
         pass

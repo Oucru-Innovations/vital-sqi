@@ -400,7 +400,7 @@ def lf_hf_ratio_sqi(nn_intervals, lf_range=(0.04, 0.15), hf_range=(0.15, 0.4)):
         warnings.warn("Invalid input: nn_intervals must be a list or numpy array.")
         return np.nan
 
-    if not nn_intervals or len(nn_intervals) < 3:
+    if len(nn_intervals) < 3:
         warnings.warn("Insufficient NN intervals for LF/HF ratio calculation.")
         return np.nan
 
@@ -414,7 +414,6 @@ def lf_hf_ratio_sqi(nn_intervals, lf_range=(0.04, 0.15), hf_range=(0.15, 0.4)):
 
     lf_power = np.sum(powers[(freqs >= lf_range[0]) & (freqs < lf_range[1])])
     hf_power = np.sum(powers[(freqs >= hf_range[0]) & (freqs < hf_range[1])])
-
     if hf_power <= 0:
         warnings.warn("HF power is zero or negative, cannot compute LF/HF ratio.")
         return np.nan
@@ -484,6 +483,8 @@ def get_all_features_hrva(signal, sample_rate=100, rpeak_method=6, wave_type="EC
             if wave_type == "PPG"
             else detector.ecg_detector(signal)
         )
+        if isinstance(peak_list, tuple) and peak_list:
+            peak_list = peak_list[0]
     except Exception as e:
         warnings.warn(f"Error during peak detection: {e}")
         return {}
@@ -519,3 +520,20 @@ def get_all_features_hrva(signal, sample_rate=100, rpeak_method=6, wave_type="EC
     #     return {}, {}, {}, {}
 
     # return time_features, freq_features, geometric_features, csi_cvi_features
+
+
+# from vitalDSP.utils.synthesize_data import generate_ecg_signal
+
+# if __name__ == "__main__":
+#     sfecg = 256
+#     N = 100
+#     Anoise = 0.05
+#     hrmean = 70
+#     ecg_signal = generate_ecg_signal(sfecg=sfecg, N=N, Anoise=Anoise, hrmean=hrmean)
+#     # result_correlogram = correlogram_sqi(ecg_signal, sample_rate=sfecg, wave_type="ECG")
+#     # print(result_correlogram)
+
+#     result_ectopic = get_all_features_hrva(
+#         ecg_signal, sample_rate=sfecg, rpeak_method=6, wave_type="ECG"
+#     )
+#     print(result_ectopic)

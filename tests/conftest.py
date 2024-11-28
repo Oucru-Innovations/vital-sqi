@@ -5,9 +5,11 @@ from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 from dash.testing.composite import DashComposite
 
+
 def pytest_ignore_collect(path):
     if "vital_sqi/app" in str(path):
         return True
+
 
 def pytest_addoption(parser):
     """Add a command-line option for selecting the browser."""

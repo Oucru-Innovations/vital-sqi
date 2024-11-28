@@ -18,6 +18,7 @@ from vital_sqi.common.utils import HiddenPrints
 import warnings
 from statsmodels.tsa.stattools import acf
 from vital_sqi.common.rpeak_detection import PeakDetector
+from scipy import signal
 from vitalDSP.transforms.beats_transformation import RRTransformation
 
 
@@ -82,7 +83,7 @@ def ectopic_sqi(
 
         # Remove outliers based on RRI bounds and calculate outlier ratio
         rr_intervals_cleaned = transformer.remove_invalid_rr_intervals(
-            rr_intervals, min_rri=low_rri / 1000, max_rri=high_rri / 1000
+            rr_intervals, min_rr=low_rri / 1000, max_rr=high_rri / 1000
         )
         number_outliers = np.isnan(rr_intervals_cleaned).sum()
         total_rr_intervals = len(rr_intervals_cleaned)
@@ -96,7 +97,7 @@ def ectopic_sqi(
             rr_intervals_cleaned
         )
         selected_rule = rules[rule_index - 1]
-        nn_intervals = transformer.remove_ectopic_beats(
+        nn_intervals = remove_ectopic_beats(
             interpolated_rr_intervals, method=selected_rule
         )
         number_ectopics = np.isnan(nn_intervals).sum()
@@ -104,27 +105,95 @@ def ectopic_sqi(
 
         return ectopic_ratio
 
-    except ValueError as e:
-        warnings.warn(str(e))
-        return np.nan
-
     except Exception as e:
         warnings.warn(f"Unexpected error in ectopic_sqi: {e}")
         return np.nan
 
-    except ValueError as e:
-        warnings.warn(f"Error in ectopic_sqi: {e}")
-        return np.nan
+
+def remove_ectopic_beats(rr_intervals, method="adaptive"):
+    """
+    Removes ectopic beats from RR intervals using a specified method.
+
+    Parameters
+    ----------
+    rr_intervals : np.array
+        The array of RR intervals (in seconds) with or without NaN values.
+    method : str, optional
+        The method to detect and remove ectopic beats. Options are 'adaptive', 'linear', or 'spline'.
+        Default is 'adaptive'.
+
+    Returns
+    -------
+    np.array
+        The array of RR intervals with ectopic beats marked as NaN.
+
+    Notes
+    -----
+    - Adaptive: Uses local and global trends to detect ectopic beats.
+    - Linear: Removes beats based on a linear trend.
+    - Spline: Uses spline fitting for ectopic beat detection.
+
+    Example
+    -------
+    >>> rr_intervals = np.array([0.8, 1.2, 1.0, 2.5, 0.9, 0.85])
+    >>> rr_transformation = RRTransformation(signal, fs, "ECG")
+    >>> clean_rr_intervals = rr_transformation.remove_ectopic_beats(rr_intervals, method="adaptive")
+    """
+    try:
+        if method not in ["adaptive", "linear", "spline"]:
+            raise ValueError(
+                f"Invalid method: {method}. Choose 'adaptive', 'linear', or 'spline'."
+            )
+
+        rr_intervals_cleaned = np.copy(rr_intervals)
+        valid_intervals = rr_intervals_cleaned[~np.isnan(rr_intervals_cleaned)]
+
+        if len(valid_intervals) < 3:
+            raise ValueError("Not enough valid RR intervals for ectopic detection.")
+
+        if method == "adaptive":
+            # Detect ectopic beats using a running mean and threshold
+            running_mean = np.convolve(valid_intervals, np.ones(5) / 5, mode="same")
+            deviations = np.abs(valid_intervals - running_mean)
+            threshold = 0.2 * running_mean  # 20% deviation considered ectopic
+            ectopic_mask = deviations > threshold
+            rr_intervals_cleaned[~np.isnan(rr_intervals_cleaned)] = np.where(
+                ectopic_mask, np.nan, valid_intervals
+            )
+
+        elif method == "linear":
+            # Use linear interpolation to fit a trend and remove ectopic beats
+            linear_fit = np.polyval(
+                np.polyfit(np.arange(len(valid_intervals)), valid_intervals, 1),
+                np.arange(len(valid_intervals)),
+            )
+            deviations = np.abs(valid_intervals - linear_fit)
+            threshold = 0.15 * linear_fit  # 15% deviation considered ectopic
+            ectopic_mask = deviations > threshold
+            rr_intervals_cleaned[~np.isnan(rr_intervals_cleaned)] = np.where(
+                ectopic_mask, np.nan, valid_intervals
+            )
+
+        elif method == "spline":
+            # Use spline fitting to detect and remove ectopic beats
+            from scipy.interpolate import UnivariateSpline
+
+            spline = UnivariateSpline(
+                np.arange(len(valid_intervals)), valid_intervals, s=0.1
+            )
+            spline_fit = spline(np.arange(len(valid_intervals)))
+            deviations = np.abs(valid_intervals - spline_fit)
+            threshold = 0.1 * spline_fit  # 10% deviation considered ectopic
+            ectopic_mask = deviations > threshold
+            rr_intervals_cleaned[~np.isnan(rr_intervals_cleaned)] = np.where(
+                ectopic_mask, np.nan, valid_intervals
+            )
+
+        return rr_intervals_cleaned
 
     except Exception as e:
-        warnings.warn(f"Unexpected error in ectopic_sqi: {e}")
-        return np.nan
-
-    except Exception as e:
-        warnings.warn(
-            f"No peaks detected in the signal. RR interval computation failed: {e}"
-        )
-        return np.nan
+        warnings.warn(f"Error in remove_ectopic_beats: {e}")
+        return rr_intervals
 
 
 def correlogram_sqi(s, sample_rate=100, wave_type="PPG", time_lag=3, n_selection=3):
@@ -159,29 +228,25 @@ def correlogram_sqi(s, sample_rate=100, wave_type="PPG", time_lag=3, n_selection
         corr = acf(s, nlags=nlags, fft=True)
 
         # Find peaks in the autocorrelation function
-        # corr_peaks_idx = signal.find_peaks(corr)[0]
-        # corr_peaks_value = corr[corr_peaks_idx]
-        detector = PeakDetector(wave_type=wave_type)
-
-        if wave_type == "PPG":
-            corr_peaks_idx, _ = detector.ppg_detector(s)
-        else:
-            corr_peaks_idx, _ = detector.ecg_detector(s)
+        corr_peaks_idx = signal.find_peaks(corr)[0]
         corr_peaks_value = corr[corr_peaks_idx]
+
         if len(corr_peaks_idx) == 0:
             warnings.warn("No peaks detected in the autocorrelation function.")
-            return []
+            return np.nan
 
-        # Select top peaks
-        n_selection = min(n_selection, len(corr_peaks_value))
-        corr_sqi = list(corr_peaks_idx[:n_selection]) + list(
-            corr_peaks_value[:n_selection]
-        )
-        return corr_sqi
+        # Select top peaks based on autocorrelation values
+        top_values = np.sort(corr_peaks_value)[
+            -n_selection:
+        ]  # Select top `n_selection` values
+
+        # Compute SQI as the mean of the top peak values
+        sqi_value = np.mean(top_values)
+        return sqi_value
 
     except Exception as e:
         warnings.warn(f"Error in correlogram_sqi: {e}")
-        return []
+        return np.nan
 
 
 def interpolation_sqi(s):
@@ -254,3 +319,19 @@ def msq_sqi(s, peak_detector_1=7, peak_detector_2=6, wave_type="PPG"):
     except Exception as e:
         warnings.warn(f"Error in msq_sqi: {e}")
         return np.nan
+
+
+# from vitalDSP.utils.synthesize_data import generate_ecg_signal
+# if __name__ == "__main__":
+#     sfecg = 256
+#     N = 100
+#     Anoise = 0.05
+#     hrmean = 70
+#     ecg_signal = generate_ecg_signal(
+#         sfecg=sfecg, N=N, Anoise=Anoise, hrmean=hrmean
+#     )
+#     # result_correlogram = correlogram_sqi(ecg_signal, sample_rate=sfecg, wave_type="ECG")
+#     # print(result_correlogram)
+
+#     result_ectopic = ectopic_sqi(ecg_signal, sample_rate=sfecg, wave_type="ECG")
+#     print(result_ectopic)

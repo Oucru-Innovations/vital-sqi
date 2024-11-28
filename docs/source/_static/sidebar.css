@@ -1,0 +1,22 @@
+.wy-nav-side {
+    background-color: #f8f9fa; /* Light background */
+}
+.wy-nav-content {
+    padding: 1em;
+}
+.wy-menu-vertical {
+    border-right: 1px solid #ddd;
+}
+.wy-menu-vertical li a {
+    font-size: 0.95em;
+    color: #007bff; /* Link color */
+}
+.wy-menu-vertical li a:hover {
+    text-decoration: underline;
+}
+.wy-menu-vertical li.toctree-l1 > a {
+    font-weight: bold; /* Top-level items */
+}
+.wy-menu-vertical li.toctree-l2 > a {
+    margin-left: 10px; /* Indent for second-level items */
+}
