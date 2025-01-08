@@ -5,7 +5,7 @@
 [![Documentation Status](https://readthedocs.org/projects/vitalsqi/badge/?version=latest)](https://vitalsqi.readthedocs.io/en/latest/?badge=latest)
 [![PyPI version](https://badge.fury.io/py/vital-sqi.svg)](https://badge.fury.io/py/vital-sqi)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) -->
-
+[![DOI](https://zenodo.org/badge/888226413.svg)](https://doi.org/10.5281/zenodo.14613710)
 ![GitHub stars](https://img.shields.io/github/stars/Oucru-Innovations/vital-sqi?style=social)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/vitalSQI-toolkit)
 ![PyPI](https://img.shields.io/pypi/v/vitalSQI-toolkit)
