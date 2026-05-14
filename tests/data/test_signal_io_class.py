@@ -5,7 +5,20 @@ from unittest.mock import patch, MagicMock
 from datetime import datetime
 from vital_sqi.data.signal_sqi_class import SignalSQI
 from vital_sqi.rule import Rule, RuleSet
-from vitalDSP.utils.synthesize_data import generate_ecg_signal
+def generate_ecg_signal(sfecg=256, N=100, Anoise=0.05, hrmean=70):
+    """Minimal synthetic ECG: periodic QRS spikes on a noisy baseline."""
+    rng = np.random.default_rng(42)
+    n_samples = int(sfecg * N)
+    t = np.arange(n_samples) / sfecg
+    beat_period = 60.0 / hrmean  # seconds per beat
+    signal = Anoise * rng.standard_normal(n_samples)
+    spike_indices = np.arange(0, n_samples, int(beat_period * sfecg))
+    for idx in spike_indices:
+        for offset, amp in [(-1, 0.2), (0, 1.0), (1, -0.3), (2, 0.1)]:
+            pos = idx + offset
+            if 0 <= pos < n_samples:
+                signal[pos] += amp
+    return signal
 
 
 class TestSignalSQI:

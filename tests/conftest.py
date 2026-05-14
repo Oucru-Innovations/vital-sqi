@@ -6,8 +6,8 @@ from webdriver_manager.firefox import GeckoDriverManager
 from dash.testing.composite import DashComposite
 
 
-def pytest_ignore_collect(path):
-    if "vital_sqi/app" in str(path):
+def pytest_ignore_collect(collection_path):
+    if "vital_sqi/app" in str(collection_path):
         return True
 
 

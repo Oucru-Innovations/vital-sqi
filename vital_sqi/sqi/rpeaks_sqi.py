@@ -32,35 +32,43 @@ def ectopic_sqi(
     high_rri=2000,
 ):
     """
-    Evaluate the ratio of ectopic (invalid) R-R intervals in a signal based on HRV rules.
+    Compute the ratio of ectopic (invalid) beats in a signal.
+
+    The function first removes out-of-range RR intervals (outliers), then
+    applies an interpolation-based ectopic detection method to the remaining
+    intervals.
 
     Parameters
     ----------
     s : array-like
-        Input signal.
+        Raw waveform signal (PPG or ECG).
     rule_index : int, optional
-        Index of HRV rule for ectopic beat removal. Default is 1 (Adaptive).
-        1: Adaptive, 2: Linear, 3: Spline
+        Controls which step of ectopic analysis to perform:
+
+        * ``0`` — return the outlier ratio only (no ectopic removal)
+        * ``1`` — apply *adaptive* ectopic removal after outlier filtering
+        * ``2`` — apply *linear* ectopic removal after outlier filtering
+        * ``3`` — apply *spline* ectopic removal after outlier filtering
+
+        Default is ``1``.
     sample_rate : int, optional
-        Sampling frequency in Hz. Default is 100.
+        Sampling frequency in Hz (default ``100``).
     rpeak_detector : int, optional
-        Type of R peak detector algorithm to use. Default is 6.
+        Peak detector index used by ``RRTransformation`` (default ``6``).
+        This parameter is passed through but the actual detector is managed
+        internally by ``vitalDSP``.
     wave_type : str, optional
-        Type of signal (ECG or PPG). Default is "PPG".
+        ``'PPG'`` or ``'ECG'`` (default ``'PPG'``).
     low_rri : int, optional
-        Minimum acceptable R-R interval in ms. Default is 300.
+        Minimum acceptable RR interval in milliseconds (default ``300``).
     high_rri : int, optional
-        Maximum acceptable R-R interval in ms. Default is 2000.
+        Maximum acceptable RR interval in milliseconds (default ``2000``).
 
     Returns
     -------
     float
-        Ectopic beat ratio.
-
-    Notes
-    -----
-    This function computes the ectopic beat ratio using R-R intervals derived
-    from peak detection. Invalid intervals are identified using the specified HRV rules.
+        A ratio in ``[0, 1]`` where ``0`` means no ectopic/outlier beats and
+        ``1`` means all beats are invalid.  Returns ``np.nan`` on error.
     """
     rules = ["adaptive", "linear", "spline"]
 
@@ -87,7 +95,7 @@ def ectopic_sqi(
         )
         number_outliers = np.isnan(rr_intervals_cleaned).sum()
         total_rr_intervals = len(rr_intervals_cleaned)
-        outlier_ratio = number_outliers / max(total_rr_intervals - number_outliers, 1)
+        outlier_ratio = number_outliers / max(total_rr_intervals, 1)
 
         if rule_index == 0:
             return outlier_ratio
@@ -101,7 +109,7 @@ def ectopic_sqi(
             interpolated_rr_intervals, method=selected_rule
         )
         number_ectopics = np.isnan(nn_intervals).sum()
-        ectopic_ratio = number_ectopics / max(len(nn_intervals) - number_ectopics, 1)
+        ectopic_ratio = number_ectopics / max(len(nn_intervals), 1)
 
         return ectopic_ratio
 
@@ -112,32 +120,37 @@ def ectopic_sqi(
 
 def remove_ectopic_beats(rr_intervals, method="adaptive"):
     """
-    Removes ectopic beats from RR intervals using a specified method.
+    Mark ectopic beats in an RR-interval array as NaN.
 
     Parameters
     ----------
-    rr_intervals : np.array
-        The array of RR intervals (in seconds) with or without NaN values.
+    rr_intervals : np.ndarray
+        RR intervals in seconds, possibly containing NaN values from a prior
+        outlier-removal step.
     method : str, optional
-        The method to detect and remove ectopic beats. Options are 'adaptive', 'linear', or 'spline'.
-        Default is 'adaptive'.
+        Detection algorithm.  One of:
+
+        * ``'adaptive'`` — compares each interval to a 5-point running mean;
+          deviations > 20 % are flagged.
+        * ``'linear'`` — fits a linear trend to valid intervals; deviations
+          > 15 % are flagged.
+        * ``'spline'`` — fits a smoothing spline; deviations > 10 % are
+          flagged.
+
+        Default is ``'adaptive'``.
 
     Returns
     -------
-    np.array
-        The array of RR intervals with ectopic beats marked as NaN.
-
-    Notes
-    -----
-    - Adaptive: Uses local and global trends to detect ectopic beats.
-    - Linear: Removes beats based on a linear trend.
-    - Spline: Uses spline fitting for ectopic beat detection.
+    np.ndarray
+        Copy of *rr_intervals* with ectopic positions set to ``NaN``.
+        If an error occurs the original array is returned unchanged.
 
     Example
     -------
-    >>> rr_intervals = np.array([0.8, 1.2, 1.0, 2.5, 0.9, 0.85])
-    >>> rr_transformation = RRTransformation(signal, fs, "ECG")
-    >>> clean_rr_intervals = rr_transformation.remove_ectopic_beats(rr_intervals, method="adaptive")
+    >>> import numpy as np
+    >>> from vital_sqi.sqi.rpeaks_sqi import remove_ectopic_beats
+    >>> rr = np.array([0.8, 1.2, 1.0, 2.5, 0.9, 0.85])
+    >>> clean = remove_ectopic_beats(rr, method="adaptive")
     """
     try:
         if method not in ["adaptive", "linear", "spline"]:
@@ -198,26 +211,34 @@ def remove_ectopic_beats(rr_intervals, method="adaptive"):
 
 def correlogram_sqi(s, sample_rate=100, wave_type="PPG", time_lag=3, n_selection=3):
     """
-    Computes the Correlogram Signal Quality Index (SQI) based on signal autocorrelation.
+    Compute the Correlogram SQI from the autocorrelation function (ACF).
+
+    The ACF is computed up to *time_lag* seconds.  The top *n_selection* ACF
+    peaks are selected and their mean is returned as a single quality score.
+    A high score (close to 1) indicates a highly periodic signal; a low score
+    indicates poor periodicity or noise.
 
     Parameters
     ----------
     s : array-like
-        Input signal.
+        Raw waveform signal (PPG or ECG).
     sample_rate : int, optional
-        Sampling frequency in Hz. Default is 100.
+        Sampling frequency in Hz (default ``100``).
     wave_type : str, optional
-        Type of signal (ECG or PPG). Default is "PPG".
+        ``'PPG'`` or ``'ECG'`` (default ``'PPG'``).  Currently unused but
+        retained for API consistency with other SQI functions.
     time_lag : int, optional
-        Time lag in seconds for autocorrelation. Default is 3.
+        Duration in seconds over which ACF is computed (default ``3``).
+        The signal must be at least ``time_lag * sample_rate`` samples long.
     n_selection : int, optional
-        Number of peaks to select from the autocorrelation function. Default is 3.
+        Number of top ACF peaks to average (default ``3``).
 
     Returns
     -------
-    list
-        List of indices and values of selected peaks in the autocorrelation function,
-        or an empty list if no peaks are found.
+    float
+        Mean ACF value of the top *n_selection* peaks, in ``[-1, 1]``.
+        Returns ``np.nan`` if the signal is too short, no peaks are found,
+        or an error occurs.
     """
     try:
         nlags = time_lag * sample_rate
@@ -295,14 +316,12 @@ def msq_sqi(s, peak_detector_1=7, peak_detector_2=6, wave_type="PPG"):
     try:
         detector = PeakDetector(wave_type=wave_type)
 
-        if wave_type == "PPG":
-            peaks_1, _ = detector.ppg_detector(s, detector_type=peak_detector_1)
-            peaks_2, _ = detector.ppg_detector(
-                s, detector_type=peak_detector_2, preprocess=False
-            )
-        else:
-            peaks_1, _ = detector.ecg_detector(s)
-            peaks_2, _ = detector.ecg_detector(s)
+        # Both wave types use ppg_detector with two different algorithm indices
+        # because ecg_detector does not expose a detector_type parameter.
+        peaks_1, _ = detector.ppg_detector(s, detector_type=peak_detector_1)
+        peaks_2, _ = detector.ppg_detector(
+            s, detector_type=peak_detector_2, preprocess=False
+        )
 
         # Check if either detector found no peaks
         if len(peaks_1) == 0 or len(peaks_2) == 0:
@@ -318,6 +337,54 @@ def msq_sqi(s, peak_detector_1=7, peak_detector_2=6, wave_type="PPG"):
         return min(peak1_dom, peak2_dom)
     except Exception as e:
         warnings.warn(f"Error in msq_sqi: {e}")
+        return np.nan
+
+
+def amplitude_consistency_sqi(s, sample_rate=100, wave_type="PPG", peak_detector=6):
+    """
+    Measure beat-to-beat amplitude variability as a signal quality indicator.
+
+    High beat-to-beat variability in peak amplitude indicates motion artifact
+    or poor electrode contact.  The metric is the coefficient of variation
+    (std / mean) of detected peak amplitudes.  A clean signal has low CV
+    (< 0.1); an artifact-corrupted signal has high CV (> 0.3).
+
+    Parameters
+    ----------
+    s : array_like
+        Raw waveform signal (PPG or ECG).
+    sample_rate : int, optional
+        Sampling frequency in Hz (default ``100``).
+    wave_type : str, optional
+        ``'PPG'`` or ``'ECG'`` (default ``'PPG'``).
+    peak_detector : int, optional
+        Peak detector index (default ``6``).
+
+    Returns
+    -------
+    float
+        Coefficient of variation of peak amplitudes, or ``np.nan`` if fewer
+        than 2 peaks are detected.
+    """
+    try:
+        detector = PeakDetector(wave_type=wave_type)
+        if wave_type == "PPG":
+            peaks, _ = detector.ppg_detector(s, detector_type=peak_detector)
+        else:
+            peaks, _ = detector.ecg_detector(s)
+
+        s = np.asarray(s, dtype=float)
+        if len(peaks) < 2:
+            warnings.warn("amplitude_consistency_sqi: fewer than 2 peaks detected.")
+            return np.nan
+
+        amplitudes = s[np.asarray(peaks, dtype=int)]
+        mean_amp = np.mean(amplitudes)
+        if mean_amp == 0:
+            return np.nan
+        return float(np.std(amplitudes, ddof=1) / np.abs(mean_amp))
+    except Exception as e:
+        warnings.warn(f"Error in amplitude_consistency_sqi: {e}")
         return np.nan
 
 

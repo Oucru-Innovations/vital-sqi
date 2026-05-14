@@ -86,7 +86,7 @@
       "axis": -1
     }
   },
-  "ectopic": {
+  "ectopic_outlier": {
     "sqi": "ectopic_sqi",
     "args": {
       "rule_index": 0,
@@ -97,7 +97,7 @@
       "high_rri": 2000
     }
   },
-  "ectopic": {
+  "ectopic_adaptive": {
     "sqi": "ectopic_sqi",
     "args": {
       "rule_index": 1,
@@ -108,7 +108,7 @@
       "high_rri": 2000
     }
   },
-  "ectopic": {
+  "ectopic_linear": {
     "sqi": "ectopic_sqi",
     "args": {
       "rule_index": 2,
@@ -119,7 +119,7 @@
       "high_rri": 2000
     }
   },
-  "ectopic": {
+  "ectopic_spline": {
     "sqi": "ectopic_sqi",
     "args": {
       "rule_index": 3,
@@ -213,7 +213,7 @@
     }
   },
   "nn_mean": {
-    "sqi": "nn_mean_sqi",
+    "sqi": "mean_nn_sqi",
     "args": {
     }
   },
@@ -281,8 +281,6 @@
   "peak_frequency": {
     "sqi": "peak_frequency_sqi",
     "args": {
-      "freqs": null,
-      "pows": null,
       "f_min": 0.04,
       "f_max": 0.15
     }
@@ -290,8 +288,6 @@
   "absolute_power": {
     "sqi": "absolute_power_sqi",
     "args": {
-      "freqs": null,
-      "pows": null,
       "f_min": 0.04,
       "f_max": 0.15
     }
@@ -299,8 +295,6 @@
   "log_power": {
     "sqi": "log_power_sqi",
     "args": {
-      "freqs": null,
-      "pows": null,
       "f_min": 0.04,
       "f_max": 0.15
     }
@@ -308,8 +302,6 @@
   "relative_power": {
     "sqi": "relative_power_sqi",
     "args": {
-      "freqs": null,
-      "pows": null,
       "f_min": 0.04,
       "f_max": 0.15
     }
@@ -317,19 +309,13 @@
   "normalized_power": {
     "sqi": "normalized_power_sqi",
     "args": {
-      "freqs": null,
-      "pows": null,
-      "lf_min": 0.04,
-      "lf_max": 0.15,
-      "hf_min": 0.15,
-      "hf_max": 0.4
+      "f_min": 0.04,
+      "f_max": 0.15
     }
   },
   "lf_hf_ratio": {
     "sqi": "lf_hf_ratio_sqi",
     "args": {
-      "freqs": null,
-      "pows": null,
       "lf_min": 0.04,
       "lf_max": 0.15,
       "hf_min": 0.15,

@@ -98,9 +98,9 @@ def split_segment(
     duration : float, optional
         Segment length in seconds (if split_type=0) or in beats (if split_type=1, default is 30).
     overlapping : float or int, optional
-        Overlap in seconds (if split_type=0) or in beats (if split_type=1, default is 0).
+        Overlap in seconds (only used when split_type=0; ignored for beat-based split, default is 0).
     peak_detector : int, optional
-        Type of peak detector for beat-based segmentation (default is 6 - vitalDSP method).
+        Type of peak detector for beat-based segmentation, 1–7 (default is 6 — vitalDSP detector).
     wave_type : str, optional
         Type of signal, either 'PPG' or 'ECG' (default is 'PPG').
 
@@ -155,7 +155,7 @@ def split_segment(
         else:
             _, chunk_indices = detector.ecg_detector(np.array(sig), get_session=True)
     # Handle case when chunk_indices is empty
-    if not chunk_indices:
+    if chunk_indices is None or len(chunk_indices) == 0:
         warnings.warn("No segments could be created; returning empty lists.")
         return [], pd.DataFrame(columns=["start", "end"])
 

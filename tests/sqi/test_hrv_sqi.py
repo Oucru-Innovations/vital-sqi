@@ -41,8 +41,8 @@ class TestHRVSQIs:
 
     def test_sdsd_sqi(self, valid_nn_intervals, short_nn_intervals):
         """Test SDSD calculation with valid and insufficient NN intervals."""
-        # Test with valid NN intervals
-        expected_sdsd = np.std(np.diff(valid_nn_intervals))
+        # Test with valid NN intervals (ddof=1, sample std)
+        expected_sdsd = np.std(np.diff(valid_nn_intervals), ddof=1)
         assert sdsd_sqi(valid_nn_intervals) == pytest.approx(expected_sdsd, rel=1e-2)
 
         # Test with insufficient NN intervals
@@ -95,8 +95,9 @@ class TestHRVSQIs:
         assert np.isnan(median_nn_sqi(empty_nn_intervals))
 
     def test_pnn_sqi(self, valid_nn_intervals, short_nn_intervals):
+        # pnn_sqi uses strict > (not >=): diffs=[10,10,10,30,10], only 30 > 10 -> 20%
         assert pnn_sqi(valid_nn_intervals, threshold=10) == pytest.approx(
-            100.0, rel=1e-2
+            20.0, rel=1e-2
         )
         assert np.isnan(pnn_sqi(short_nn_intervals))
         with pytest.warns(UserWarning):
@@ -110,7 +111,7 @@ class TestHRVSQIs:
         assert hr_sqi(valid_nn_intervals, stat="median") == pytest.approx(
             74.68, rel=1e-2
         )
-        assert hr_sqi(valid_nn_intervals, stat="std") == pytest.approx(1.2283, rel=1e-2)
+        assert hr_sqi(valid_nn_intervals, stat="std") == pytest.approx(1.3456, rel=1e-2)
 
         # Test invalid statistic
         with pytest.warns(UserWarning, match="Invalid statistic requested"):

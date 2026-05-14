@@ -15,6 +15,10 @@ import logging
 import inspect
 from vital_sqi.sqi import sqi_mapping
 
+# Cache getfullargspec results per function — introspection is static and
+# called once per SQI per segment, which adds up across thousands of segments.
+_argspec_cache: dict = {}
+
 
 def classify_segments(
     sqis,
@@ -25,27 +29,73 @@ def classify_segments(
     upper_bound=0.95,
 ):
     """
-    Classify each segment based on SQI thresholds and return the decision per segment.
+    Classify each segment as ``'accept'`` or ``'reject'`` using threshold rules.
+
+    The classifier builds a :class:`~vital_sqi.rule.RuleSet` from the rules
+    named in *ruleset_order*, then runs ``RuleSet.execute`` on every segment
+    row.  Rules are evaluated in ascending integer key order; the first
+    ``'reject'`` short-circuits evaluation for that segment (linear early-exit,
+    not recursive).
+
+    **Auto-mode** (``auto_mode=True``, the default):
+        Before classification, each rule's threshold values are replaced with
+        the empirical *lower_bound* and *upper_bound* quantiles of the SQI
+        values observed across all segments.  This makes the classifier
+        self-adapting: it accepts the middle 90% (or whatever quantile range
+        you choose) of the recording's own distribution.  Use this when you
+        trust the recording but not the pre-calibrated absolute bounds.
+
+    **Manual mode** (``auto_mode=False``):
+        Thresholds stored in *rule_dict_filename* are used exactly as written.
+        Use this when you want to apply externally calibrated bounds without
+        adapting them to the current recording.
 
     Parameters
     ----------
-    sqis : DataFrame
-        A DataFrame containing SQI values for each segment.
+    sqis : list of DataFrame
+        One DataFrame per segment produced by :func:`extract_sqi`.  Every
+        DataFrame must have the SQI column names referenced in *ruleset_order*.
     rule_dict_filename : str
-        Path to the JSON file defining thresholds for each SQI.
+        Path to a ``rule_dict.json`` file.  Each entry must have keys
+        ``"name"`` (SQI column name) and ``"def"`` (list of threshold
+        conditions accepted by :func:`~vital_sqi.common.utils.update_rule`).
+        The calibrated file at ``vital_sqi/resource/rule_dict.json`` is the
+        default starting point.
     ruleset_order : dict
-        Specifies the order of the rules in the ruleset.
-    auto_mode : bool
-        Enables automatic threshold adjustment based on quantiles.
-    lower_bound, upper_bound : float
-        Quantiles for the lower and upper bounds of threshold adjustment.
+        Maps integer priority keys to rule names present in the rule file,
+        e.g. ``{1: "kurtosis_sqi", 2: "perfusion_sqi"}``.  Lower key =
+        evaluated first.  Only rules listed here participate in classification.
+    auto_mode : bool, optional
+        Adjust thresholds to observed quantiles before classifying
+        (default ``True``).
+    lower_bound : float, optional
+        Lower quantile for auto-mode threshold adjustment (default ``0.05``).
+    upper_bound : float, optional
+        Upper quantile for auto-mode threshold adjustment (default ``0.95``).
 
     Returns
     -------
-    rule_list : dict
-        Dictionary containing rule names and corresponding Rule objects.
-    sqis : DataFrame
-        Updated DataFrame with decisions ('accept' or 'reject') for each segment.
+    ruleset : RuleSet
+        The :class:`~vital_sqi.rule.RuleSet` used for classification.
+    sqis : list of DataFrame
+        The input list with an added ``"decision"`` column
+        (``'accept'`` or ``'reject'``) in each DataFrame.
+
+    Raises
+    ------
+    FileNotFoundError
+        If *rule_dict_filename* does not exist.
+    KeyError
+        If a rule name from *ruleset_order* is absent from the rule file.
+
+    Examples
+    --------
+    >>> ruleset_order = {1: "kurtosis_sqi", 2: "perfusion_sqi"}
+    >>> ruleset, sqis = classify_segments(
+    ...     sqis, "vital_sqi/resource/rule_dict.json",
+    ...     ruleset_order, auto_mode=True
+    ... )
+    >>> decisions = [df["decision"].iloc[0] for df in sqis]
     """
     # Load rule dictionary
     try:
@@ -83,10 +133,9 @@ def classify_segments(
     selected_sqi = list(ruleset_order.values())
 
     for i, sqi_df in enumerate(sqis):
+        subset = sqi_df[selected_sqi]
         decisions = [
-            ruleset.execute(
-                pd.DataFrame(dict(sqi_df[selected_sqi].iloc[idx]), index=[0])
-            )
+            ruleset.execute(subset.iloc[[idx]])
             for idx in range(len(sqi_df))
         ]
         sqi_df["decision"] = decisions
@@ -171,23 +220,34 @@ def per_beat_sqi(
 
     Parameters
     ----------
-    sqi_func : function
-        Function for calculating SQI per beat.
-    troughs : array-like
-        Indices marking the start of each beat.
+    sqi_func : callable
+        SQI function with signature ``f(beat_array, **kwargs) -> scalar``.
+    troughs : array-like of int
+        Indices marking the start of each beat (typically returned by
+        :class:`~vital_sqi.common.rpeak_detection.PeakDetector`).
+        Requires at least two entries to form one beat.
     signal : array-like
-        Signal values for a single segment.
+        Raw signal values for a single segment.
     use_mean_beat : bool
-        Whether to use a resampled mean beat for SQI calculation.
+        If ``True``, resample every beat to *mean_resample_size* samples, average
+        them into one mean beat, and apply *sqi_func* once.  The single result is
+        then replicated to produce one value per beat interval.
+        If ``False``, apply *sqi_func* independently to each beat.
     mean_resample_size : int
-        Resample size for mean beat.
-    taper : bool
-        Whether to taper each beat.
+        Number of samples to use when resampling beats (only relevant when
+        *use_mean_beat* is ``True``).
+    taper : bool, optional
+        If ``True``, apply :func:`~vital_sqi.preprocess.preprocess_signal.taper_signal`
+        to each beat before SQI calculation (default ``False``).
+    **kwargs
+        Additional keyword arguments forwarded to *sqi_func*.
 
     Returns
     -------
-    list
-        SQI values per beat.
+    list of float
+        One SQI value per beat interval (``len(troughs) - 1`` elements in the
+        normal case).  Returns ``[-np.inf]`` when fewer than two troughs are
+        found or when no valid beats remain after filtering.
     """
     if len(troughs) < 2:
         logging.warning("Not enough troughs to compute beats.")
@@ -223,40 +283,51 @@ def per_beat_sqi(
 
 def get_sqi_dict(sqis, sqi_name):
     """
-    Map SQI name with computed values based on SQI type.
+    Package a raw SQI result into a ``{column_name: value}`` dict for DataFrame insertion.
 
     Parameters
     ----------
-    sqis : various
-        SQI values.
+    sqis : float, int, np.floating, np.ndarray, list, or dict
+        Raw value(s) returned by an SQI function.
     sqi_name : str
-        Name of the SQI.
+        Base column name for this SQI.
 
     Returns
     -------
     dict
-        Mapped SQI values.
+        Mapping of column name(s) to value(s).  Rules:
+
+        - ``correlogram_sqi`` → single ``{"correlogram_sqi": scalar}``.
+        - ``dict`` input → returned unchanged.
+        - Scalar (float / int / np.floating / np.integer) → ``{sqi_name: scalar}``.
+        - 1-element list or ndarray → ``{sqi_name: value}``.
+        - Multi-element list or ndarray → three columns:
+          ``{sqi_name_mean_sqi, sqi_name_median_sqi, sqi_name_std_sqi}``.
     """
     if sqi_name == "correlogram_sqi":
-        variations_acf = ["_peak1", "_peak2", "_peak3", "_value1", "_value2", "_value3"]
-        return {
-            f"correlogram{variation}_sqi": sqis[idx]
-            for idx, variation in enumerate(variations_acf)
-        }
+        # correlogram_sqi returns a scalar mean of top ACF peaks.
+        scalar = sqis[0] if isinstance(sqis, (list, np.ndarray)) else sqis
+        return {"correlogram_sqi": scalar}
 
     if isinstance(sqis, dict):
         return sqis
 
-    if isinstance(sqis, (float, int, np.ndarray)):
-        return {sqi_name: sqis[0] if isinstance(sqis, np.ndarray) else sqis}
+    if isinstance(sqis, (float, int, np.floating, np.integer)):
+        return {sqi_name: sqis}
 
-    if isinstance(sqis, list) and len(sqis) > 1:
+    if isinstance(sqis, np.ndarray):
+        sqis = sqis.tolist()
+
+    if isinstance(sqis, list):
+        if len(sqis) == 1:
+            return {sqi_name: sqis[0]}
         return {
             f"{sqi_name}_mean_sqi": np.mean(sqis),
             f"{sqi_name}_median_sqi": np.median(sqis),
             f"{sqi_name}_std_sqi": np.std(sqis),
         }
-    return {sqi_name: sqis[0]}
+
+    return {sqi_name: sqis}
 
 
 def get_sqi(
@@ -268,47 +339,69 @@ def get_sqi(
     mean_resample_size=100,
     wave_type="PPG",
     peak_detector=6,
+    _nn_intervals=None,
     **kwargs,
 ):
     """
-    Compute SQI for a signal segment using the specified function and configuration.
+    Compute SQI for a single signal segment.
 
     Parameters
     ----------
-    sqi_func : function
-        Function to calculate SQI.
+    sqi_func : callable
+        SQI function to apply.
     sqi_name : str
-        Name of the SQI.
-    s : DataFrame
-        Signal data.
+        Identifier for this SQI, used as the column name in the output dict.
+    s : DataFrame, Series, or array-like
+        Signal data.  When a DataFrame is passed the second column (index 1) is
+        used as the signal; a Series is converted directly; anything else is
+        coerced via ``np.asarray``.
     per_beat : bool, optional
-        Whether to calculate SQI per beat.
+        If ``True`` perform per-beat SQI computation via
+        :func:`per_beat_sqi` (default ``False``).
     use_mean_beat : bool, optional
-        Whether to use mean beat for SQI calculation.
+        Passed through to :func:`per_beat_sqi`; only relevant when
+        *per_beat* is ``True`` (default ``True``).
     mean_resample_size : int, optional
-        Resample size for mean beat.
+        Passed through to :func:`per_beat_sqi`; only relevant when
+        *per_beat* is ``True`` (default ``100``).
     wave_type : str, optional
-        Waveform type ('PPG' or 'ECG').
+        ``'PPG'`` or ``'ECG'``.  Controls which peak detector branch is used
+        when *per_beat* is ``True``, and is forwarded to SQI functions that
+        accept a *wave_type* parameter (default ``'PPG'``).
     peak_detector : int, optional
-        Peak detector mode (1-7).
+        Peak detector index (0–7) passed to
+        :class:`~vital_sqi.common.rpeak_detection.PeakDetector` when
+        *per_beat* is ``True`` (default ``6``).
+    _signal_values : np.ndarray, optional (internal)
+        Pre-extracted signal array injected by :func:`extract_segment_sqi` to
+        avoid redundant array conversion.  Not intended for direct use.
+    _peak_list : array-like, optional (internal)
+        Pre-computed peak indices injected by :func:`extract_segment_sqi`.
+    _trough_list : array-like, optional (internal)
+        Pre-computed trough indices injected by :func:`extract_segment_sqi`.
+    **kwargs
+        Additional keyword arguments forwarded to *sqi_func*.
 
     Returns
     -------
     dict
-        Calculated SQI values.
+        Mapping of column name(s) to scalar SQI value(s), as produced by
+        :func:`get_sqi_dict`.
     """
     # Extract signal values as array-like
     if isinstance(s, pd.DataFrame):
-        signal_values = s.iloc[:, 1].values  # Extract the second column as numpy array
+        signal_values = s.iloc[:, 1].values
     elif isinstance(s, pd.Series):
-        signal_values = s.values  # Convert Series to array
+        signal_values = s.values
     else:
-        signal_values = np.asarray(s)  # Ensure array-like for other input types
-    # print(sqi_func.__name__)
-    # Handle nn_intervals or other signal arguments
-    if inspect.getfullargspec(sqi_func)[0][0] == "nn_intervals":
-        # print(sqi_func.__name__)
-        signal_values = get_nn(signal_values)
+        signal_values = np.asarray(s)
+
+    # Use pre-computed nn_intervals if injected, otherwise compute from signal
+    spec_args = _argspec_cache.get(sqi_func) or _argspec_cache.setdefault(
+        sqi_func, inspect.getfullargspec(sqi_func)[0] or []
+    )
+    if spec_args and spec_args[0] == "nn_intervals":
+        signal_values = _nn_intervals if _nn_intervals is not None else get_nn(signal_values)
 
     if per_beat:
         # Peak detection and SQI calculation per beat
@@ -327,7 +420,10 @@ def get_sqi(
         )
     else:
         # Add wave_type to kwargs if needed
-        if "wave_type" in inspect.getfullargspec(sqi_func)[0]:
+        _wt_spec = _argspec_cache.get(sqi_func) or _argspec_cache.setdefault(
+            sqi_func, inspect.getfullargspec(sqi_func)[0] or []
+        )
+        if "wave_type" in _wt_spec:
             kwargs["wave_type"] = wave_type
         sqi_scores = sqi_func(signal_values, **kwargs)
 
@@ -338,27 +434,39 @@ def get_sqi(
 
 def extract_segment_sqi(s, sqi_list, sqi_names, sqi_arg_list, wave_type):
     """
-    Extract SQIs for a single segment.
+    Extract all SQIs for a single signal segment.
+
+    Peak detection is performed once per segment and the results are reused
+    across all per-beat SQI functions via the ``_peak_list`` / ``_trough_list``
+    private keyword arguments injected into :func:`get_sqi`.
 
     Parameters
     ----------
     s : DataFrame
-        Segment signal data.
-    sqi_list : list
-        List of SQI functions.
-    sqi_names : list
-        Names of SQIs.
+        Segment signal data.  Second column (index 1) must contain the raw
+        waveform values.
+    sqi_list : list of callable
+        SQI functions to evaluate, in the same order as *sqi_names*.
+    sqi_names : list of str
+        Identifiers for each SQI, matched against keys in *sqi_arg_list*.
     sqi_arg_list : dict
-        Arguments for each SQI.
+        Mapping of SQI name → keyword-argument dict.  Each dict is forwarded
+        to :func:`get_sqi` and ultimately to the underlying SQI function.
     wave_type : str
-        Type of waveform ('PPG' or 'ECG').
+        ``'PPG'`` or ``'ECG'``; controls peak detector branch.
 
     Returns
     -------
     Series
-        Calculated SQI values.
+        One entry per SQI column produced (multi-element SQIs generate
+        ``_mean_sqi``, ``_median_sqi``, ``_std_sqi`` columns via
+        :func:`get_sqi_dict`).
     """
     sqi_scores = {}
+    signal_values = s.iloc[:, 1].values
+
+    # Compute nn_intervals once and reuse across all nn_intervals-based SQIs
+    _nn_cache = None
 
     for sqi_func, sqi_name in zip(sqi_list, sqi_names):
         args = sqi_arg_list.get(sqi_name, {}).copy()
@@ -366,7 +474,19 @@ def extract_segment_sqi(s, sqi_list, sqi_names, sqi_arg_list, wave_type):
 
         try:
             if sqi_func.__name__ == "perfusion_sqi":
-                args = {"y": np.array(s.iloc[:, 1])}
+                args = {"y": signal_values}
+                sqi_scores.update(get_sqi(sqi_func, sqi_name, s, **args))
+                continue
+
+            _spec_args = _argspec_cache.get(sqi_func) or _argspec_cache.setdefault(
+                sqi_func, inspect.getfullargspec(sqi_func)[0] or []
+            )
+            first_arg = _spec_args[0] if _spec_args else ""
+            if first_arg == "nn_intervals":
+                if _nn_cache is None:
+                    _nn_cache = get_nn(signal_values)
+                args["_nn_intervals"] = _nn_cache
+
             sqi_scores.update(get_sqi(sqi_func, sqi_name, s, **args))
         except Exception as e:
             warnings.warn(f"{sqi_func.__name__} raised exception: {e}")
@@ -376,23 +496,66 @@ def extract_segment_sqi(s, sqi_list, sqi_names, sqi_arg_list, wave_type):
 
 def extract_sqi(segments, milestones, sqi_dict_filename, wave_type="PPG"):
     """
-    Extract SQIs for multiple segments based on SQI dictionary.
+    Extract all configured SQIs for every segment and return a result DataFrame.
+
+    This is the top-level entry point for batch SQI extraction.  Internally it
+    calls :func:`extract_segment_sqi` for each segment, which handles:
+
+    - Routing HRV SQIs through a single cached ``get_nn()`` call per segment.
+    - Routing signal-level SQIs directly to the SQI function.
+    - Catching per-SQI exceptions and returning NaN for failed SQIs.
+
+    Column names in the output follow these rules:
+
+    - Scalar SQIs → one column named by the ``sqi_dict`` key.
+    - Dict-returning SQIs (e.g. ``poincare_sqi``) → one column per dict key
+      (``sd1``, ``sd2``, ``area``, ``ratio``).
+    - Per-beat SQIs returning a list → three columns:
+      ``{key}_mean_sqi``, ``{key}_median_sqi``, ``{key}_std_sqi``.
 
     Parameters
     ----------
-    segments : list
-        List of segments.
+    segments : list of DataFrame
+        Segmented signal DataFrames produced by
+        :func:`~vital_sqi.preprocess.segment_split.split_segment`.
+        Each DataFrame must have two columns: timestamps (column 0) and
+        raw waveform values (column 1).
     milestones : DataFrame
-        Milestone indices for segments.
+        Two-column DataFrame with ``start_idx`` and ``end_idx`` (sample
+        positions in the original recording) for each segment.
     sqi_dict_filename : str
-        Path to SQI configuration file.
+        Path to the JSON SQI configuration file.  The calibrated default is
+        ``vital_sqi/resource/sqi_dict.json``.
+
+        Format::
+
+            {
+              "user_label":  {"sqi": "registered_function_name", "args": {...}},
+              "kurtosis":    {"sqi": "kurtosis_sqi", "args": {"axis": 0}},
+              "poincare":    {"sqi": "poincare_sqi", "args": {}}
+            }
+
+        ``"sqi"`` must be a key in :data:`~vital_sqi.sqi.sqi_mapping`.
+        ``"args"`` are keyword arguments forwarded verbatim to the SQI function.
+
     wave_type : str, optional
-        Type of waveform ('PPG' or 'ECG').
+        ``'PPG'`` (default) or ``'ECG'``.  Passed to every SQI that accepts
+        a ``wave_type`` parameter and controls peak detector branch selection.
 
     Returns
     -------
-    DataFrame
-        Extracted SQIs for each segment.
+    pd.DataFrame
+        One row per segment.  Columns are SQI labels from the config file
+        (expanded for multi-output SQIs) plus ``start_idx`` and ``end_idx``.
+
+    Examples
+    --------
+    >>> from vital_sqi.pipeline.pipeline_functions import extract_sqi
+    >>> sqi_df = extract_sqi(segments, milestones,
+    ...                      "vital_sqi/resource/sqi_dict.json",
+    ...                      wave_type="PPG")
+    >>> print(sqi_df.columns.tolist())
+    ['kurtosis', 'perfusion', 'sd1', 'sd2', 'area', 'ratio', ..., 'start_idx', 'end_idx']
     """
     with open(sqi_dict_filename, "r") as arg_file:
         sqi_dict = json.load(arg_file)

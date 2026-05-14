@@ -88,22 +88,38 @@ class RuleSet:
 
     def execute(self, value_df):
         """
-        Executes the rule set on a given DataFrame and returns a decision.
+        Execute the rule set on a single-row DataFrame and return a decision.
+
+        Rules are evaluated in ascending integer key order.  This is a
+        **linear early-exit scan** — not recursive.  The first rule that
+        returns ``"reject"`` causes immediate return without evaluating
+        subsequent rules.  Only when every rule returns ``"accept"`` is the
+        overall decision ``"accept"``.
+
+        To minimise average evaluation cost, place the most discriminative
+        or cheapest-to-compute rules at the lowest integer keys so they are
+        checked first.
 
         Parameters
         ----------
         value_df : pd.DataFrame
-            A DataFrame containing one row with values for each rule.
+            A single-row DataFrame.  Every ``rule.name`` used by this
+            ``RuleSet`` must appear as a column.
 
         Returns
         -------
         str
-            The decision ("accept" or "reject") based on the rule set.
+            ``"accept"`` if all rules pass, ``"reject"`` as soon as any
+            rule fails.
 
         Raises
         ------
+        TypeError
+            If *value_df* is not a ``pd.DataFrame``.
+        ValueError
+            If *value_df* does not have exactly one row.
         KeyError
-            If a rule's SQI is not found in the input DataFrame.
+            If a rule's SQI name is absent from *value_df*.
         """
         if not isinstance(value_df, pd.DataFrame):
             raise TypeError(f"Expected data frame, found {type(value_df)}")

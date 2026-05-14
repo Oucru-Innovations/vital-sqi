@@ -52,7 +52,7 @@ def get_nn(
     sample_rate : int or float, optional
         Sampling frequency in Hz, by default 100.
     rpeak_method : int, optional
-        Method identifier for R-peak detection, by default 7.
+        Method identifier for R-peak detection, by default 6.
     remove_ectopic_beat : bool, optional
         If True, removes ectopic beats, by default False.
 
@@ -690,21 +690,42 @@ def check_signal_format(s):
 
 def create_rule_def(sqi_name, upper_bound=0, lower_bound=1):
     """
-    Creates a default rule definition for SQI.
+    Create a default rule definition for an SQI.
+
+    The rule accepts values in the half-open interval ``(lower_bound, upper_bound)``
+    and rejects everything else.
+
+    .. warning::
+        The default parameter values ``upper_bound=0, lower_bound=1`` produce a
+        degenerate rule where ``lower_bound > upper_bound``, meaning nothing is ever
+        accepted.  Always supply explicit, physiologically meaningful bounds when
+        calling this function, e.g.::
+
+            create_rule_def("kurtosis_sqi", lower_bound=0.5, upper_bound=5.0)
 
     Parameters
     ----------
     sqi_name : str
-        Name of the SQI.
+        Name of the SQI; used as both the dict key and the ``"name"`` field in the
+        rule definition.
     upper_bound : float, optional
-        Upper bound for acceptance (default is 0).
+        Exclusive upper bound for the accept region (default ``0``).
     lower_bound : float, optional
-        Lower bound for acceptance (default is 1).
+        Exclusive lower bound for the accept region (default ``1``).
 
     Returns
     -------
     dict
-        JSON-style dictionary with rule definitions.
+        Nested dict with the structure expected by the Rule engine::
+
+            {
+              sqi_name: {
+                "name": sqi_name,
+                "def": [...],
+                "desc": "",
+                "ref": ""
+              }
+            }
     """
     return {
         sqi_name: {

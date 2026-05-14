@@ -62,9 +62,9 @@ class TestEntropySqi:
         assert result < np.log(len(high_entropy_signal))
 
     def test_entropy_sqi_zero_sum(self):
+        # Flat/constant signal has zero entropy — should return 0.0, not raise
         zero_signal = np.zeros(10)
-        with pytest.raises(ValueError, match="The sum of the input signal is zero"):
-            entropy_sqi(zero_signal)
+        assert entropy_sqi(zero_signal) == 0.0
 
     def test_entropy_sqi_invalid_inputs(self):
         with pytest.raises(TypeError):

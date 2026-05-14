@@ -20,6 +20,14 @@ vital\_sqi.rule.ruleset\_class module
    :undoc-members:
    :show-inheritance:
 
+vital\_sqi.rule.robust\_classifier module
+-----------------------------------------
+
+.. automodule:: vital_sqi.rule.robust_classifier
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 

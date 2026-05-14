@@ -58,18 +58,52 @@ SQI Indexes
 
 Below is a summary of the SQIs supported by the library:
 
-======================= ============================================== ==================
-Acronym                Domain                                          Status
-======================= ============================================== ==================
-``perfusion``          Statistical                                    Stable
-``kurtosis``           Statistical                                    Stable
-``skewness``           Statistical                                    Stable
-``entropy``            Signal Processing                              Stable
-``signal_to_noise``    Signal Processing                              Stable
-``zero_crossings_rate`` Signal Processing                             Stable
-``mean_crossing_rate`` Signal Processing                              Stable
-``DTW``                Dynamic Time Warping                          Stable
-======================= ============================================== ==================
+============================== ============================================== ==================
+Acronym                       Domain                                          Status
+============================== ============================================== ==================
+``perfusion``                 Statistical                                    Stable
+``kurtosis``                  Statistical                                    Stable
+``skewness``                  Statistical                                    Stable
+``entropy``                   Statistical                                    Stable
+``signal_to_noise``           Statistical                                    Stable
+``zero_crossings_rate``       Statistical / Signal Processing                Stable
+``mean_crossing_rate``        Statistical / Signal Processing                Stable
+``clipping``                  Statistical / Signal Processing                Stable
+``baseline_wander``           Signal Processing                              Stable
+``spectral_snr``              Signal Processing                              Stable
+``band_energy``               Signal Processing                              Stable
+``DTW``                       Dynamic Time Warping                           Stable
+``correlogram``               R-peak / HRV                                   Stable
+``ectopic``                   R-peak / HRV                                   Stable
+``msq``                       R-peak / HRV                                   Stable
+``amplitude_consistency``     R-peak / HRV                                   Stable
+``interpolation``             R-peak / HRV                                   Placeholder
+``sdnn``                      HRV (time domain)                              Stable
+``rmssd``                     HRV (time domain)                              Stable
+``sdsd``                      HRV (time domain)                              Stable
+``cvsd``                      HRV (time domain)                              Stable
+``cvnn``                      HRV (time domain)                              Stable
+``mean_nn``                   HRV (time domain)                              Stable
+``median_nn``                 HRV (time domain)                              Stable
+``pnn``                       HRV (time domain)                              Stable
+``rr_irregularity``           HRV (time domain)                              Stable
+``hr_mean``                   HRV (heart rate)                               Stable
+``hr_median``                 HRV (heart rate)                               Stable
+``hr_min``                    HRV (heart rate)                               Stable
+``hr_max``                    HRV (heart rate)                               Stable
+``hr_std``                    HRV (heart rate)                               Stable
+``hr_range``                  HRV (heart rate)                               Stable
+``peak_frequency``            HRV (frequency domain)                         Stable
+``absolute_power``            HRV (frequency domain)                         Stable
+``log_power``                 HRV (frequency domain)                         Stable
+``relative_power``            HRV (frequency domain)                         Stable
+``normalized_power``          HRV (frequency domain)                         Stable
+``lf_hf_ratio``               HRV (frequency domain)                         Stable
+``poincare``                  HRV (nonlinear)                                Stable
+``sample_entropy``            HRV (nonlinear)                                Stable
+``dfa``                       HRV (nonlinear)                                Stable
+``hurst``                     HRV (nonlinear)                                Stable
+============================== ============================================== ==================
 
 References:
 - [1] Optimal Signal Quality Index for Photoplethysmogram Signals, Mohamed Elgendi et al.
@@ -116,6 +150,42 @@ Detailed SQI Descriptions
    - Aligns two signals temporally and computes a similarity score.
    - Particularly useful for time-series comparisons.
    - See: :py:func:`vital_sqi.sqi.dtw_sqi.dtw_sqi`
+
+- **Clipping (`clipping`)**:
+   - Fraction of samples at or near the amplitude rail (saturation detection).
+   - Returns 0.0 for a clean signal; >0.05 indicates heavy saturation.
+   - See: :py:func:`vital_sqi.sqi.standard_sqi.clipping_sqi`
+
+- **Baseline Wander (`baseline_wander`)**:
+   - Ratio of sub-0.5 Hz STFT energy to total energy. High values indicate slow drift.
+   - See: :py:func:`vital_sqi.sqi.standard_sqi.baseline_wander_sqi`
+
+- **Spectral SNR (`spectral_snr`)**:
+   - 10*log10(in-band power / out-of-band power) in dB. Defaults to PPG band 0.5-4 Hz.
+   - See: :py:func:`vital_sqi.sqi.standard_sqi.spectral_snr_sqi`
+
+- **Amplitude Consistency (`amplitude_consistency`)**:
+   - Coefficient of variation of beat-to-beat peak amplitudes. Low CV = stable beats.
+   - See: :py:func:`vital_sqi.sqi.rpeaks_sqi.amplitude_consistency_sqi`
+
+- **RR Irregularity (`rr_irregularity`)**:
+   - Mean absolute deviation of successive RR differences normalised by median RR.
+   - More sensitive than SDNN for detecting ectopic beats and AF.
+   - See: :py:func:`vital_sqi.sqi.hrv_sqi.rr_irregularity_sqi`
+
+- **Sample Entropy (`sample_entropy`)**:
+   - Complexity/regularity of the NN interval series (Richman & Moorman, 2000).
+   - Lower SampEn = more regular = better quality signal.
+   - See: :py:func:`vital_sqi.sqi.hrv_sqi.sample_entropy_sqi`
+
+- **DFA (`dfa`)**:
+   - Detrended Fluctuation Analysis short-range scaling exponent (alpha1).
+   - Healthy sinus rhythm: alpha1 ~ 1.0-1.2; white noise: ~0.5.
+   - See: :py:func:`vital_sqi.sqi.hrv_sqi.dfa_sqi`
+
+- **Hurst (`hurst`)**:
+   - Hurst exponent via R/S analysis. H > 0.5 = persistent structured signal.
+   - See: :py:func:`vital_sqi.sqi.hrv_sqi.hurst_sqi`
 
 ---
 

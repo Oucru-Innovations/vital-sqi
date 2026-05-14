@@ -4,6 +4,7 @@ Implementation of waveform-based SQIs (Signal Quality Indices):
 - For PPG (to be extended).
 """
 
+import warnings
 import scipy.signal as sn
 import numpy as np
 from vitalDSP.physiological_features.waveform import WaveformMorphology
@@ -173,8 +174,17 @@ def vhf_norm_power_sqi(signal, sampling_rate, band=[150, np.inf], nperseg=2048):
     )
 
     idx = np.where((f > band[0]) & (f <= band[1]))[0]
+    if len(idx) == 0:
+        warnings.warn(
+            f"vhf_norm_power_sqi: band {band} is above Nyquist ({sampling_rate / 2} Hz). "
+            "Returning NaN."
+        )
+        return np.nan
     freq_marginal = np.sum(np.abs(spec[idx]), axis=0)
-    np_vhf = (np.median(freq_marginal) / max(freq_marginal)).real
+    peak = max(freq_marginal)
+    if peak == 0:
+        return np.nan
+    np_vhf = (np.median(freq_marginal) / peak).real
 
     return np_vhf
 

@@ -108,7 +108,7 @@ class Rule:
             assert (
                 isinstance(label, str) or label is None
             ), "Label must be 'accept' or 'reject' string"
-            if label != "reject" or label != "accept":
+            if label != "reject" and label != "accept":
                 label = None
 
         threshold_list = []
@@ -178,17 +178,36 @@ class Rule:
 
     def apply_rule(self, x):
         """
-        Applies the rule to a given input and returns the corresponding label.
+        Apply the rule to an SQI value and return its quality label.
+
+        The rule stores a sorted ``boundaries`` array and a parallel
+        ``labels`` array built from the ``"def"`` entries.  Lookup is O(log n)
+        via ``bisect.bisect_left``:
+
+        - If *x* equals a boundary exactly, the label at the boundary position
+          is returned (handles closed-interval endpoints).
+        - Otherwise ``bisect_left`` locates the interval ``[boundaries[i-1],
+          boundaries[i])`` containing *x* and returns ``labels[i*2]``.
+
+        For the standard four-element calibrated rule encoding the open
+        interval ``(lower, upper)``::
+
+            boundaries = [lower, upper]
+            labels     = ["reject", "accept", "reject", ...]
+
+        so:  x <= lower → "reject", lower < x < upper → "accept",
+             x >= upper → "reject".
 
         Parameters
         ----------
         x : float
-            The input value to check against the rule.
+            The SQI value to evaluate.
 
         Returns
         -------
-        str
-            The label ("accept" or "reject") based on the rule.
+        str or None
+            ``"accept"``, ``"reject"``, or ``None`` if no label is defined
+            for the interval containing *x*.
         """
         boundaries, labels = self.rule["boundaries"], self.rule["labels"]
 

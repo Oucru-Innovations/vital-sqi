@@ -16,6 +16,9 @@ from scipy.signal import resample
 from sklearn.preprocessing import MinMaxScaler
 from scipy.spatial.distance import cdist
 
+# Template cache: (template_type, template_size) -> scaled reference array
+_template_cache: dict = {}
+
 
 def dtw_distance(seq1, seq2):
     """
@@ -84,20 +87,25 @@ def dtw_sqi(s, template_type, template_size=100, simple_mode=False):
     if not isinstance(template_type, int) or not (0 <= template_type <= 3):
         raise ValueError("Invalid template type")
 
-    if template_type == 0:
-        reference = ppg_nonlinear_dynamic_system_template(template_size).reshape(-1)
-    elif template_type == 1:
-        reference = ppg_dual_double_frequency_template(template_size)
-    elif template_type == 2:
-        reference = ppg_absolute_dual_skewness_template(template_size)
-    elif template_type == 3:
-        reference = np.array(ecg_dynamic_template(template_size)).reshape(-1)
-    else:
-        raise ValueError("Invalid template type")
+    cache_key = (template_type, template_size)
+    if cache_key not in _template_cache:
+        if template_type == 0:
+            ref_raw = ppg_nonlinear_dynamic_system_template(template_size).reshape(-1)
+        elif template_type == 1:
+            ref_raw = ppg_dual_double_frequency_template(template_size)
+        elif template_type == 2:
+            ref_raw = ppg_absolute_dual_skewness_template(template_size)
+        elif template_type == 3:
+            ref_raw = np.array(ecg_dynamic_template(template_size)).reshape(-1)
+        scaler = MinMaxScaler(feature_range=(0, 1))
+        _template_cache[cache_key] = scaler.fit_transform(
+            ref_raw.reshape(-1, 1)
+        ).reshape(-1)
+
+    reference = _template_cache[cache_key]
 
     scaler = MinMaxScaler(feature_range=(0, 1))
     s = scaler.fit_transform(s.reshape(-1, 1)).reshape(-1)
-    reference = scaler.fit_transform(reference.reshape(-1, 1)).reshape(-1)
 
     if simple_mode:
         return np.mean(

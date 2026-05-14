@@ -17,6 +17,7 @@ Getting Started
 
    usage/installation
    usage/introduction
+   usage/pipeline
    usage/contributions
    usage/development
    usage/quickstart
@@ -43,6 +44,8 @@ Documentation
    docstring/modules
    docstring/vital_sqi.pipeline
    docstring/vital_sqi.sqi
+   docstring/vital_sqi.calibration
+   docstring/vital_sqi.rule
 
 Indices and tables
 ==================

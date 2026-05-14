@@ -1,85 +1,93 @@
 """
-PPG pipeline
+PPG Pipeline Example
 ====================
 
-.. warning:: Include code to show how to create a pipeline to
-             clean an ecg signal. It is probably in one of the
-             jupyter notebooks (maybe ecg_qc.ipynb).
+End-to-end example: load a PPG signal, split it into 30-second segments,
+compute SQIs, and classify each segment as *accept* or *reject*.
 
 """
 
+# %%
+# Load signal data
+# ----------------
+# We generate a synthetic PPG-like signal for demonstration.
 
-###################################
-# Load the data
-# -------------
-#
-
-# First, lets load the data (ppg sample data)
-
-# Libraries
+import numpy as np
 import pandas as pd
+from vital_sqi.common.utils import generate_timestamp
 
-# Load data
-#data = pd.read_csv(path)
+# 5 minutes of synthetic PPG at 100 Hz
+fs = 100
+duration_s = 300
+n = fs * duration_s
+t = np.linspace(0, duration_s, n)
+signal = np.sin(2 * np.pi * 1.2 * t) + 0.1 * np.random.randn(n)
 
+timestamps = generate_timestamp(None, fs, n)
+df = pd.DataFrame({"time": timestamps, "PLETH": signal})
 
-###################################
-# Preprocessing
-# -------------
-#
-# Wearable devices need some time to pick up stable signals. For this reason,
-# it is a common practice to trim the data. In the following example, the f
-# first and last 5 minutes of each recording are trimmed to exclude unstable
-# signals.
+print(f"Signal shape: {df.shape}")
 
-# Trim data
-#data = trim(data, start=5, end=5)
+# %%
+# Split into segments
+# -------------------
+# Each segment is 30 seconds with no overlap.
 
-###################################
-# Now, lets remove the following noise:
-#
-#   - ``PLETH`` is 0 or unchanged values for xxx time
-#   - ``SpO2`` < 80
-#   - ``Pulse`` > 200 bpm or ``Pulse`` < 40 bpm
-#   - ``Perfusion`` < 0.2
-#   - ``Lost connection``: sampling rate reduced due to (possible) Bluetooth connection
-#     lost. Timestamp column shows missing timepoints. If the missing duration is
-#     larger than 1 cycle (xxx ms), recording is split. If not, missing timepoints
-#     are interpolated.
+from vital_sqi.preprocess.segment_split import split_segment
 
-# Remove invalid PLETH
-#idxs_1 = data.PLETH == 0
-#idxs_2 = unchanged(period=xxxx)
-#data = data[~(idxs_1 | idxs_2)]
+segments, milestones = split_segment(df, sampling_rate=fs, duration=30)
+print(f"Number of segments: {len(segments)}")
 
-# Remove invalid ranges
-#data = data[data.SpO2>=80]
-#data = data[data.Pulse.between(40, 200)]
-#data = data[data.Perfusion>=0.2]
+# %%
+# Extract SQIs
+# ------------
+# Use the bundled SQI configuration template.
 
-# Remove lost connection
-#data = data[lost_connection(min_fs, max_fs) ??
+import os
+from vital_sqi.pipeline.pipeline_functions import extract_sqi
 
-# The recording is then split into files.
+sqi_dict_file = os.path.join(
+    os.path.dirname(__file__), "..", "..", "vital_sqi", "resource", "sqi_dict.json"
+)
+sqi_dict_file = os.path.abspath(sqi_dict_file)
 
-#######################################
-# Lets filter the data with a band pass filter; high pass filter (cut off at 1Hz)
+sqi_df = extract_sqi(segments, milestones, sqi_dict_file, wave_type="PPG")
+print(sqi_df.head())
 
-#######################################
-# Lets detrend the signal
+# %%
+# Classify segments
+# -----------------
+# Use the bundled rule template with auto-mode quantile thresholds.
 
-# Lets split the data
-#4.1. Cut data by time domain. Split data into sub segments of 30 seconds
-#4.2. Apply the peak and trough detection methods in peak_approaches.py to get single PPG cycles in each segment
-#4.3. Shift baseline above 0 and tapering each single PPG cycle to compute the mean template
-#Notes: the described process is implemented in split_to_segments.py
+from vital_sqi.pipeline.pipeline_functions import classify_segments
 
-#######################################
-# SQI scores
-# ----------
-#
-# Lets compute the SQI scores
+rule_dict_file = os.path.join(
+    os.path.dirname(__file__), "..", "..", "vital_sqi", "resource", "rule_dict.json"
+)
+rule_dict_file = os.path.abspath(rule_dict_file)
 
-#######################################
-# Visualization
-# -------------
+ruleset_order = {1: "perfusion", 2: "kurtosis"}
+
+# classify_segments expects a list of DataFrames
+ruleset, classified = classify_segments(
+    [sqi_df], rule_dict_file, ruleset_order, auto_mode=True
+)
+
+print(classified[0]["decision"].value_counts())
+
+# %%
+# Visualise decisions
+# -------------------
+
+import matplotlib.pyplot as plt
+
+decisions = classified[0]["decision"]
+colors = ["green" if d == "accept" else "red" for d in decisions]
+
+plt.figure(figsize=(12, 3))
+plt.bar(range(len(decisions)), [1] * len(decisions), color=colors)
+plt.xlabel("Segment index")
+plt.ylabel("")
+plt.title("PPG Segment Quality (green=accept, red=reject)")
+plt.tight_layout()
+plt.show()

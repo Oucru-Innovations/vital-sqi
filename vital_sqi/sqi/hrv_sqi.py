@@ -37,7 +37,7 @@ def nn_mean_sqi(nn_intervals):
     815.0
     """
     try:
-        if not nn_intervals:
+        if len(nn_intervals) == 0:
             warnings.warn("Empty NN intervals provided.")
             return np.nan
         return np.mean(nn_intervals)
@@ -67,7 +67,7 @@ def sdnn_sqi(nn_intervals):
     12.47
     """
     try:
-        if not nn_intervals:
+        if len(nn_intervals) == 0:
             warnings.warn("Empty NN intervals provided.")
             return np.nan
         return np.std(nn_intervals, ddof=1)
@@ -100,7 +100,7 @@ def sdsd_sqi(nn_intervals):
         if len(nn_intervals) < 2:
             warnings.warn("Insufficient NN intervals for SDSD calculation.")
             return np.nan
-        return np.std(np.diff(nn_intervals))
+        return np.std(np.diff(nn_intervals), ddof=1)
     except Exception as e:
         warnings.warn(f"Error in sdsd_sqi: {e}")
         return np.nan
@@ -220,7 +220,7 @@ def median_nn_sqi(nn_intervals):
     815.0
     """
     try:
-        if not nn_intervals:
+        if len(nn_intervals) == 0:
             warnings.warn("Empty NN intervals provided.")
             return np.nan
         return np.median(nn_intervals)
@@ -256,7 +256,7 @@ def pnn_sqi(nn_intervals, threshold=50):
             warnings.warn("Insufficient NN intervals for pNN calculation.")
             return np.nan
         differences = np.abs(np.diff(nn_intervals))
-        count_exceeds = np.sum(differences >= threshold)
+        count_exceeds = np.sum(differences > threshold)
         return (count_exceeds / len(differences)) * 100
     except Exception as e:
         warnings.warn(f"Error in pnn_sqi: {e}")
@@ -300,7 +300,7 @@ def hr_sqi(nn_intervals, stat="mean"):
                 "Invalid statistic requested: choose from 'mean', 'median', 'min', 'max', or 'std'."
             )
 
-        if not nn_intervals:
+        if len(nn_intervals) == 0:
             warnings.warn("Empty NN intervals provided.")
             return np.nan
 
@@ -315,7 +315,7 @@ def hr_sqi(nn_intervals, stat="mean"):
         elif stat == "max":
             return np.max(hr_values)
         elif stat == "std":
-            return np.std(hr_values)
+            return np.std(hr_values, ddof=1)
     except Exception as e:
         warnings.warn(f"Error in hr_sqi: {e}")
         return np.nan
@@ -346,7 +346,7 @@ def hr_range_sqi(nn_intervals, range_min=40, range_max=200):
     0.0
     """
     try:
-        if not nn_intervals:
+        if len(nn_intervals) == 0:
             warnings.warn("Empty NN intervals provided.")
             return np.nan
         hr_values = 60000 / np.array(nn_intervals)
@@ -358,7 +358,38 @@ def hr_range_sqi(nn_intervals, range_min=40, range_max=200):
 
 
 def frequency_sqi(nn_intervals, freq_min=0.04, freq_max=0.15, metric="peak"):
-    """Calculates frequency domain features in a specified frequency band."""
+    """
+    Compute a frequency-domain feature in a specified band.
+
+    Parameters
+    ----------
+    nn_intervals : list or np.ndarray
+        NN intervals in milliseconds. Requires at least 3 values.
+    freq_min : float, optional
+        Lower bound of the frequency band in Hz (default ``0.04``).
+    freq_max : float, optional
+        Upper bound of the frequency band in Hz (default ``0.15``).
+    metric : str, optional
+        Feature to extract.  One of:
+
+        * ``'peak'`` — frequency of the spectral peak in the band.
+        * ``'absolute'`` — sum of power in the band.
+        * ``'log'`` — sum of log power in the band.
+        * ``'normalized'`` — L2 norm of power in the band.
+        * ``'relative'`` — band power / total power.
+
+        Default is ``'peak'``.
+
+    Returns
+    -------
+    float
+        The requested feature, or ``np.nan`` on invalid input or error.
+
+    Raises
+    ------
+    ValueError
+        If *metric* is not one of the accepted strings.
+    """
     # Validate metric first
     valid_metrics = ["peak", "absolute", "log", "normalized", "relative"]
     if metric not in valid_metrics:
@@ -379,23 +410,42 @@ def frequency_sqi(nn_intervals, freq_min=0.04, freq_max=0.15, metric="peak"):
         warnings.warn(f"Error during PSD calculation: {e}")
         return np.nan
 
-    band_powers = powers[(freqs >= freq_min) & (freqs < freq_max)]
+    mask = (freqs >= freq_min) & (freqs < freq_max)
+    band_freqs = freqs[mask]
+    band_powers = powers[mask]
 
     if metric == "peak":
-        return freqs[np.argmax(band_powers)] if band_powers.size > 0 else np.nan
+        return band_freqs[np.argmax(band_powers)] if band_powers.size > 0 else np.nan
     elif metric == "absolute":
         return np.sum(band_powers)
     elif metric == "log":
         return np.sum(np.log(band_powers + 1e-10))
     elif metric == "normalized":
-        return np.sum(np.linalg.norm(band_powers + 1e-10))
+        return np.linalg.norm(band_powers + 1e-10)
     elif metric == "relative":
         total_power = np.sum(powers)
         return np.sum(band_powers) / total_power if total_power > 0 else np.nan
 
 
 def lf_hf_ratio_sqi(nn_intervals, lf_range=(0.04, 0.15), hf_range=(0.15, 0.4)):
-    """Calculates the LF/HF power ratio in frequency domain."""
+    """
+    Compute the LF/HF power ratio from NN intervals.
+
+    Parameters
+    ----------
+    nn_intervals : list or np.ndarray
+        NN intervals in milliseconds.  Requires at least 3 values.
+    lf_range : tuple of float, optional
+        Low-frequency band ``(min_Hz, max_Hz)`` (default ``(0.04, 0.15)``).
+    hf_range : tuple of float, optional
+        High-frequency band ``(min_Hz, max_Hz)`` (default ``(0.15, 0.4)``).
+
+    Returns
+    -------
+    float
+        LF power divided by HF power, or ``np.nan`` if HF power is zero or
+        insufficient data are provided.
+    """
     if not isinstance(nn_intervals, (list, np.ndarray)):
         warnings.warn("Invalid input: nn_intervals must be a list or numpy array.")
         return np.nan
@@ -473,7 +523,29 @@ def poincare_features_sqi(nn_intervals):
 
 
 def get_all_features_hrva(signal, sample_rate=100, rpeak_method=6, wave_type="ECG"):
-    """Extracts HRV features using peak detection and returns a comprehensive set of metrics."""
+    """
+    Extract a comprehensive set of HRV features from a raw waveform.
+
+    Parameters
+    ----------
+    signal : array-like
+        Raw PPG or ECG signal.
+    sample_rate : int, optional
+        Sampling frequency in Hz (default ``100``).
+    rpeak_method : int, optional
+        Peak detector index (0–7) passed to
+        :class:`~vital_sqi.common.rpeak_detection.PeakDetector` (default ``6``).
+    wave_type : str, optional
+        ``'PPG'`` or ``'ECG'`` (default ``'ECG'``).  Controls which detector
+        branch is used.
+
+    Returns
+    -------
+    dict
+        HRV features as returned by
+        :meth:`vitalDSP.physiological_features.hrv_analysis.HRVFeatures.compute_all_features`.
+        Returns an empty dict on detection failure or insufficient peaks.
+    """
     if sample_rate <= 0:
         raise ValueError("Sample rate must be a positive number.")
     detector = PeakDetector(wave_type=wave_type)
@@ -520,6 +592,231 @@ def get_all_features_hrva(signal, sample_rate=100, rpeak_method=6, wave_type="EC
     #     return {}, {}, {}, {}
 
     # return time_features, freq_features, geometric_features, csi_cvi_features
+
+
+def rr_irregularity_sqi(nn_intervals):
+    """
+    Measure beat-to-beat RR interval irregularity.
+
+    Computes the mean absolute deviation of successive RR differences
+    normalised by the median RR interval.  More sensitive to ectopic beats
+    and atrial fibrillation than plain SDNN.  A clean, regular signal has
+    a value close to 0; a highly irregular signal approaches or exceeds 1.
+
+    Parameters
+    ----------
+    nn_intervals : list or np.ndarray
+        NN intervals in milliseconds.
+
+    Returns
+    -------
+    float
+        ``mean(|diff(nn)|) / median(nn)``, or ``np.nan`` on invalid input.
+    """
+    try:
+        nn = np.asarray(nn_intervals, dtype=float)
+        if len(nn) < 2:
+            warnings.warn("Insufficient NN intervals for rr_irregularity_sqi.")
+            return np.nan
+        med = np.median(nn)
+        if med == 0:
+            return np.nan
+        return float(np.mean(np.abs(np.diff(nn))) / med)
+    except Exception as e:
+        warnings.warn(f"Error in rr_irregularity_sqi: {e}")
+        return np.nan
+
+
+def sample_entropy_sqi(nn_intervals, m=2, r=None):
+    """
+    Compute Sample Entropy (SampEn) of the NN interval series.
+
+    Sample entropy measures the regularity and complexity of a time series.
+    Lower values indicate a more regular, predictable signal (good quality).
+    Higher values indicate more randomness or noise.
+
+    Parameters
+    ----------
+    nn_intervals : list or np.ndarray
+        NN intervals in milliseconds.  Requires at least ``2*m + 2`` values.
+    m : int, optional
+        Template length (embedding dimension), default ``2``.
+    r : float, optional
+        Tolerance (similarity threshold).  Defaults to
+        ``0.2 * std(nn_intervals)`` per Richman & Moorman (2000).
+
+    Returns
+    -------
+    float
+        Sample entropy value >= 0, or ``np.nan`` on invalid input or when
+        no template matches are found.
+
+    References
+    ----------
+    Richman J.S. & Moorman J.R. (2000). Am J Physiol Heart Circ Physiol.
+    """
+    try:
+        nn = np.asarray(nn_intervals, dtype=float)
+        n = len(nn)
+        if n < 2 * m + 2:
+            warnings.warn("Insufficient NN intervals for sample_entropy_sqi.")
+            return np.nan
+        if r is None:
+            r = 0.2 * np.std(nn, ddof=1)
+        if r <= 0:
+            return np.nan
+
+        def _count_matches(seq, length, tol):
+            count = 0
+            for i in range(len(seq) - length):
+                template = seq[i: i + length]
+                for j in range(i + 1, len(seq) - length):
+                    if np.max(np.abs(seq[j: j + length] - template)) < tol:
+                        count += 1
+            return count
+
+        A = _count_matches(nn, m + 1, r)
+        B = _count_matches(nn, m, r)
+        if B == 0:
+            return np.nan
+        return float(-np.log(A / B))
+    except Exception as e:
+        warnings.warn(f"Error in sample_entropy_sqi: {e}")
+        return np.nan
+
+
+def dfa_sqi(nn_intervals, scale_min=4, scale_max=None, n_scales=10):
+    """
+    Detrended Fluctuation Analysis (DFA) short-range scaling exponent (alpha1).
+
+    DFA alpha1 quantifies short-range (4-16 beat) fractal correlations in the
+    RR interval series.  Healthy sinus rhythm gives alpha1 ~ 1.0-1.2.
+    White noise gives alpha1 ~ 0.5.  Values near 0.5 indicate disorganised,
+    noisy intervals (poor signal or AF).
+
+    Parameters
+    ----------
+    nn_intervals : list or np.ndarray
+        NN intervals in milliseconds.  Requires at least 32 values for a
+        reliable estimate.
+    scale_min : int, optional
+        Minimum DFA window size in beats (default ``4``).
+    scale_max : int, optional
+        Maximum DFA window size in beats.  Defaults to ``len(nn) // 4``.
+    n_scales : int, optional
+        Number of logarithmically spaced window sizes (default ``10``).
+
+    Returns
+    -------
+    float
+        DFA alpha1 scaling exponent, or ``np.nan`` on insufficient data.
+
+    References
+    ----------
+    Peng C.K. et al. (1995). Chaos 5(1):82-87.
+    """
+    try:
+        nn = np.asarray(nn_intervals, dtype=float)
+        n = len(nn)
+        if n < 16:
+            warnings.warn("Insufficient NN intervals for dfa_sqi (need >= 16).")
+            return np.nan
+
+        if scale_max is None:
+            scale_max = max(n // 4, scale_min + 1)
+        scale_max = min(scale_max, n // 2)
+        if scale_max <= scale_min:
+            return np.nan
+
+        scales = np.unique(
+            np.round(np.logspace(np.log10(scale_min), np.log10(scale_max), n_scales)).astype(int)
+        )
+        scales = scales[scales >= scale_min]
+
+        profile = np.cumsum(nn - np.mean(nn))
+        fluctuations = []
+        for s in scales:
+            n_blocks = n // s
+            if n_blocks < 2:
+                continue
+            blocks = profile[: n_blocks * s].reshape(n_blocks, s)
+            x = np.arange(s)
+            rms = []
+            for block in blocks:
+                coef = np.polyfit(x, block, 1)
+                trend = np.polyval(coef, x)
+                rms.append(np.sqrt(np.mean((block - trend) ** 2)))
+            fluctuations.append((s, np.mean(rms)))
+
+        if len(fluctuations) < 2:
+            return np.nan
+        log_s = np.log10([f[0] for f in fluctuations])
+        log_f = np.log10([f[1] for f in fluctuations])
+        alpha, _ = np.polyfit(log_s, log_f, 1)
+        return float(alpha)
+    except Exception as e:
+        warnings.warn(f"Error in dfa_sqi: {e}")
+        return np.nan
+
+
+def hurst_sqi(nn_intervals):
+    """
+    Estimate the Hurst exponent of the NN interval series via R/S analysis.
+
+    The Hurst exponent (H) quantifies long-range correlations:
+
+    * H > 0.5 — persistent, structured series (healthy sinus rhythm)
+    * H ~ 0.5 — uncorrelated (white noise, artifact)
+    * H < 0.5 — anti-persistent series
+
+    Parameters
+    ----------
+    nn_intervals : list or np.ndarray
+        NN intervals in milliseconds.  Requires at least 20 values.
+
+    Returns
+    -------
+    float
+        Hurst exponent estimate in ``[0, 1]``, or ``np.nan`` on error.
+    """
+    try:
+        nn = np.asarray(nn_intervals, dtype=float)
+        n = len(nn)
+        if n < 20:
+            warnings.warn("Insufficient NN intervals for hurst_sqi (need >= 20).")
+            return np.nan
+
+        # R/S analysis across multiple sub-series lengths
+        lags = np.unique(
+            np.round(np.logspace(np.log2(4), np.log2(n // 2), 8, base=2)).astype(int)
+        )
+        lags = lags[(lags >= 4) & (lags <= n // 2)]
+        if len(lags) < 2:
+            return np.nan
+
+        rs_values = []
+        for lag in lags:
+            rs_per_lag = []
+            for start in range(0, n - lag, lag):
+                sub = nn[start: start + lag]
+                mean_sub = np.mean(sub)
+                devs = np.cumsum(sub - mean_sub)
+                r = np.max(devs) - np.min(devs)
+                s = np.std(sub, ddof=1)
+                if s > 0:
+                    rs_per_lag.append(r / s)
+            if rs_per_lag:
+                rs_values.append((lag, np.mean(rs_per_lag)))
+
+        if len(rs_values) < 2:
+            return np.nan
+        log_n = np.log10([v[0] for v in rs_values])
+        log_rs = np.log10([v[1] for v in rs_values])
+        H, _ = np.polyfit(log_n, log_rs, 1)
+        return float(np.clip(H, 0.0, 1.0))
+    except Exception as e:
+        warnings.warn(f"Error in hurst_sqi: {e}")
+        return np.nan
 
 
 # from vitalDSP.utils.synthesize_data import generate_ecg_signal

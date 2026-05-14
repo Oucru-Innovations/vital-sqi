@@ -41,27 +41,27 @@
     "def": [
       {
         "op": ">",
-        "value": "33108.87",
+        "value": "681.922",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "33108.87",
+        "value": "681.922",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "8917154.7",
+        "value": "1899.35",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "8917154.7",
+        "value": "1899.35",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=681.9 to p95=1899 (median=1352, n=400). Accept/reject distributions overlap. Accept p5-p95: (682, 1.9e+03), Reject p5-p95: (727, 9.34e+03). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
   "mean_cross_sqi": {
     "name": "mean_cross_sqi",
@@ -122,49 +122,49 @@
     "def": [
       {
         "op": ">",
-        "value": "0.27",
+        "value": "-1e-06",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "0.27",
+        "value": "-1e-06",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "0.99",
+        "value": "1e-06",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "0.99",
+        "value": "1e-06",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=-1e-06 to p95=1e-06 (median=0, n=400). Constant/near-constant: band widened by epsilon",
+    "ref": "vital_sqi.calibration"
   },
   "dtw_mean_sqi": {
     "name": "dtw_mean_sqi",
     "def": [
       {
         "op": ">",
-        "value": "-0.0",
+        "value": "-0.01",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "-0.0",
+        "value": "-0.01",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "-0.0",
+        "value": "50.0",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "-0.0",
+        "value": "50.0",
         "label": "accept"
       }
     ],
@@ -176,184 +176,22 @@
     "def": [
       {
         "op": ">",
-        "value": "0.0",
+        "value": "-0.01",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "0.0",
+        "value": "-0.01",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "0.0",
+        "value": "20.0",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "0.0",
-        "label": "accept"
-      }
-    ],
-    "desc": "",
-    "ref": ""
-  },
-  "correlogram_peak1_sqi": {
-    "name": "correlogram_peak1_sqi",
-    "def": [
-      {
-        "op": ">",
-        "value": "23.0",
-        "label": "accept"
-      },
-      {
-        "op": "<=",
-        "value": "23.0",
-        "label": "reject"
-      },
-      {
-        "op": ">=",
-        "value": "59.22",
-        "label": "reject"
-      },
-      {
-        "op": "<",
-        "value": "59.22",
-        "label": "accept"
-      }
-    ],
-    "desc": "",
-    "ref": ""
-  },
-  "correlogram_peak2_sqi": {
-    "name": "correlogram_peak2_sqi",
-    "def": [
-      {
-        "op": ">",
-        "value": "43.39",
-        "label": "accept"
-      },
-      {
-        "op": "<=",
-        "value": "43.39",
-        "label": "reject"
-      },
-      {
-        "op": ">=",
-        "value": "119.44",
-        "label": "reject"
-      },
-      {
-        "op": "<",
-        "value": "119.44",
-        "label": "accept"
-      }
-    ],
-    "desc": "",
-    "ref": ""
-  },
-  "correlogram_peak3_sqi": {
-    "name": "correlogram_peak3_sqi",
-    "def": [
-      {
-        "op": ">",
-        "value": "68.39",
-        "label": "accept"
-      },
-      {
-        "op": "<=",
-        "value": "68.39",
-        "label": "reject"
-      },
-      {
-        "op": ">=",
-        "value": "178.66",
-        "label": "reject"
-      },
-      {
-        "op": "<",
-        "value": "178.66",
-        "label": "accept"
-      }
-    ],
-    "desc": "",
-    "ref": ""
-  },
-  "correlogram_value1_sqi": {
-    "name": "correlogram_value1_sqi",
-    "def": [
-      {
-        "op": ">",
-        "value": "-0.54",
-        "label": "accept"
-      },
-      {
-        "op": "<=",
-        "value": "-0.54",
-        "label": "reject"
-      },
-      {
-        "op": ">=",
-        "value": "0.98",
-        "label": "reject"
-      },
-      {
-        "op": "<",
-        "value": "0.98",
-        "label": "accept"
-      }
-    ],
-    "desc": "",
-    "ref": ""
-  },
-  "correlogram_value2_sqi": {
-    "name": "correlogram_value2_sqi",
-    "def": [
-      {
-        "op": ">",
-        "value": "-0.16",
-        "label": "accept"
-      },
-      {
-        "op": "<=",
-        "value": "-0.16",
-        "label": "reject"
-      },
-      {
-        "op": ">=",
-        "value": "0.98",
-        "label": "reject"
-      },
-      {
-        "op": "<",
-        "value": "0.98",
-        "label": "accept"
-      }
-    ],
-    "desc": "",
-    "ref": ""
-  },
-  "correlogram_value3_sqi": {
-    "name": "correlogram_value3_sqi",
-    "def": [
-      {
-        "op": ">",
-        "value": "-0.51",
-        "label": "accept"
-      },
-      {
-        "op": "<=",
-        "value": "-0.51",
-        "label": "reject"
-      },
-      {
-        "op": ">=",
-        "value": "0.95",
-        "label": "reject"
-      },
-      {
-        "op": "<",
-        "value": "0.95",
+        "value": "20.0",
         "label": "accept"
       }
     ],
@@ -365,27 +203,27 @@
     "def": [
       {
         "op": ">",
-        "value": "-0.26",
+        "value": "1.40545",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "-0.26",
+        "value": "1.40545",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "0.87",
+        "value": "1.80931",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "0.87",
+        "value": "1.80931",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=1.405 to p95=1.809 (median=1.568, n=400). Accept/reject distributions overlap. Accept p5-p95: (1.41, 1.81), Reject p5-p95: (-0.0339, 1.68). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
   "skewness_mean_sqi": {
     "name": "skewness_mean_sqi",
@@ -473,27 +311,27 @@
     "def": [
       {
         "op": ">",
-        "value": "-1.25",
+        "value": "0.702887",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "-1.25",
+        "value": "0.702887",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "1.17",
+        "value": "4.75783",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "1.17",
+        "value": "4.75783",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.7029 to p95=4.758 (median=3.884, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.703, 4.76), Reject p5-p95: (-0.592, 30). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
   "kurtosis_mean_sqi": {
     "name": "kurtosis_mean_sqi",
@@ -581,27 +419,27 @@
     "def": [
       {
         "op": ">",
-        "value": "7.73",
+        "value": "8.78224",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "7.73",
+        "value": "8.78224",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "7.96",
+        "value": "8.87233",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "7.96",
+        "value": "8.87233",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=8.782 to p95=8.872 (median=8.85, n=400). Accept/reject distributions overlap. Accept p5-p95: (8.78, 8.87), Reject p5-p95: (8.81, 8.94). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
   "entropy_mean_sqi": {
     "name": "entropy_mean_sqi",
@@ -684,86 +522,86 @@
     "desc": "",
     "ref": ""
   },
-  "mean_nni_sqi": {
-    "name": "mean_nni_sqi",
+  "mean_nn_sqi": {
+    "name": "mean_nn_sqi",
     "def": [
       {
         "op": ">",
-        "value": "403.74",
+        "value": "879.052",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "403.74",
+        "value": "879.052",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "1031.03",
+        "value": "1368.73",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "1031.03",
+        "value": "1368.73",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=879.1 to p95=1369 (median=1098, n=400). Accept/reject distributions overlap. Accept p5-p95: (879, 1.37e+03), Reject p5-p95: (724, 1.37e+03). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
   "sdnn_sqi": {
     "name": "sdnn_sqi",
     "def": [
       {
         "op": ">",
-        "value": "7.93",
+        "value": "217.357",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "7.93",
+        "value": "217.357",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "676.03",
+        "value": "596.221",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "676.03",
+        "value": "596.221",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=217.4 to p95=596.2 (median=409.4, n=400). Accept/reject distributions overlap. Accept p5-p95: (217, 596), Reject p5-p95: (186, 639). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
   "sdsd_sqi": {
     "name": "sdsd_sqi",
     "def": [
       {
         "op": ">",
-        "value": "11.3",
+        "value": "116.327",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "11.3",
+        "value": "116.327",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "831.8",
+        "value": "1049.55",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "831.8",
+        "value": "1049.55",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=116.3 to p95=1050 (median=747, n=400). Accept/reject distributions overlap. Accept p5-p95: (116, 1.05e+03), Reject p5-p95: (122, 1.07e+03). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
   "nni_50_sqi": {
     "name": "nni_50_sqi",
@@ -878,54 +716,54 @@
     "def": [
       {
         "op": ">",
-        "value": "11.31",
+        "value": "115.326",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "11.31",
+        "value": "115.326",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "831.94",
+        "value": "1040.3",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "831.94",
+        "value": "1040.3",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=115.3 to p95=1040 (median=742.1, n=400). Accept/reject distributions overlap. Accept p5-p95: (115, 1.04e+03), Reject p5-p95: (121, 1.06e+03). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
-  "median_nni_sqi": {
-    "name": "median_nni_sqi",
+  "median_nn_sqi": {
+    "name": "median_nn_sqi",
     "def": [
       {
         "op": ">",
-        "value": "403.9",
+        "value": "750",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "403.9",
+        "value": "750",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "1041.1",
+        "value": "1525.25",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "1041.1",
+        "value": "1525.25",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=750 to p95=1525 (median=1020, n=400). Accept/reject distributions overlap. Accept p5-p95: (750, 1.53e+03), Reject p5-p95: (650, 1.5e+03). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
   "range_nni_sqi": {
     "name": "range_nni_sqi",
@@ -959,162 +797,162 @@
     "def": [
       {
         "op": ">",
-        "value": "0.02",
+        "value": "0.0805353",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "0.02",
+        "value": "0.0805353",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "1.01",
+        "value": "0.899606",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "1.01",
+        "value": "0.899606",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.08054 to p95=0.8996 (median=0.7553, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.0805, 0.9), Reject p5-p95: (0.104, 0.907). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
-  "cvnni_sqi": {
-    "name": "cvnni_sqi",
+  "cvnn_sqi": {
+    "name": "cvnn_sqi",
     "def": [
       {
         "op": ">",
-        "value": "0.02",
+        "value": "0.158574",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "0.02",
+        "value": "0.158574",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "0.78",
+        "value": "0.521888",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "0.78",
+        "value": "0.521888",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.1586 to p95=0.5219 (median=0.4038, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.159, 0.522), Reject p5-p95: (0.158, 0.557). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
-  "mean_hr_sqi": {
-    "name": "mean_hr_sqi",
+  "hr_mean_sqi": {
+    "name": "hr_mean_sqi",
     "def": [
       {
         "op": ">",
-        "value": "58.18",
+        "value": "46.5544",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "58.18",
+        "value": "46.5544",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "143.81",
+        "value": "80.7034",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "143.81",
+        "value": "80.7034",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=46.55 to p95=80.7 (median=67.5, n=400). Accept/reject distributions overlap. Accept p5-p95: (46.6, 80.7), Reject p5-p95: (46.9, 88.9). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
-  "max_hr_sqi": {
-    "name": "max_hr_sqi",
+  "hr_max_sqi": {
+    "name": "hr_max_sqi",
     "def": [
       {
         "op": ">",
-        "value": "62.36",
+        "value": "89.5522",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "62.36",
+        "value": "89.5522",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "201.52",
+        "value": "125",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "201.52",
+        "value": "125",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=89.55 to p95=125 (median=115.4, n=400). Accept/reject distributions overlap. Accept p5-p95: (89.6, 125), Reject p5-p95: (89.6, 130). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
-  "min_hr_sqi": {
-    "name": "min_hr_sqi",
+  "hr_min_sqi": {
+    "name": "hr_min_sqi",
     "def": [
       {
         "op": ">",
-        "value": "10.9",
+        "value": "25.2101",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "10.9",
+        "value": "25.2101",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "134.0",
+        "value": "41.3793",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "134.0",
+        "value": "41.3793",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=25.21 to p95=41.38 (median=35.5, n=400). Accept/reject distributions overlap. Accept p5-p95: (25.2, 41.4), Reject p5-p95: (18.8, 42.6). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
-  "std_hr_sqi": {
-    "name": "std_hr_sqi",
+  "hr_std_sqi": {
+    "name": "hr_std_sqi",
     "def": [
       {
         "op": ">",
-        "value": "1.12",
+        "value": "12.4483",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "1.12",
+        "value": "12.4483",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "22.2",
+        "value": "33.1314",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "22.2",
+        "value": "33.1314",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=12.45 to p95=33.13 (median=29.48, n=400). Accept/reject distributions overlap. Accept p5-p95: (12.4, 33.1), Reject p5-p95: (12.6, 32.8). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
   "lf_sqi": {
     "name": "lf_sqi",
@@ -1175,27 +1013,27 @@
     "def": [
       {
         "op": ">",
-        "value": "0.0",
+        "value": "0.218936",
         "label": "accept"
       },
       {
         "op": "<=",
-        "value": "0.0",
+        "value": "0.218936",
         "label": "reject"
       },
       {
         "op": ">=",
-        "value": "15.57",
+        "value": "9.58829",
         "label": "reject"
       },
       {
         "op": "<",
-        "value": "15.57",
+        "value": "9.58829",
         "label": "accept"
       }
     ],
-    "desc": "",
-    "ref": ""
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.2189 to p95=9.588 (median=0.8184, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.219, 9.59), Reject p5-p95: (0.166, 7.73). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   },
   "lfnu_sqi": {
     "name": "lfnu_sqi",
@@ -1277,5 +1115,896 @@
     ],
     "desc": "",
     "ref": ""
+  },
+  "correlogram_sqi": {
+    "name": "correlogram_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.469192",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.469192",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "0.775139",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "0.775139",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.4692 to p95=0.7751 (median=0.6673, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.469, 0.775), Reject p5-p95: (0.0484, 0.837). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "signal_to_noise_sqi": {
+    "name": "signal_to_noise_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.36872",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.36872",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "0.719789",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "0.719789",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.3687 to p95=0.7198 (median=0.4905, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.369, 0.72), Reject p5-p95: (0.087, 0.76). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "zero_crossings_rate_sqi": {
+    "name": "zero_crossings_rate_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.0166688",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.0166688",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "0.117522",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "0.117522",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.01667 to p95=0.1175 (median=0.03711, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.0167, 0.118), Reject p5-p95: (0.0133, 0.457). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "mean_crossing_rate_sqi": {
+    "name": "mean_crossing_rate_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.0210705",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.0210705",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "0.0704649",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "0.0704649",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.02107 to p95=0.07046 (median=0.04063, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.0211, 0.0705), Reject p5-p95: (0.0159, 0.464). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "ectopic_sqi": {
+    "name": "ectopic_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.9",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.9",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "1.1",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "1.1",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.9 to p95=1.1 (median=1, n=400). Constant/near-constant: band widened by epsilon",
+    "ref": "vital_sqi.calibration"
+  },
+  "interpolation_sqi": {
+    "name": "interpolation_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "-1e-06",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "-1e-06",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "1e-06",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "1e-06",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=-1e-06 to p95=1e-06 (median=0, n=400). Constant/near-constant: band widened by epsilon",
+    "ref": "vital_sqi.calibration"
+  },
+  "band_energy_sqi": {
+    "name": "band_energy_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "2.33517",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "2.33517",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "3.54926",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "3.54926",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=2.335 to p95=3.549 (median=2.685, n=400). Accept/reject distributions overlap. Accept p5-p95: (2.34, 3.55), Reject p5-p95: (2.32, 32.8). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "lfe_sqi": {
+    "name": "lfe_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.0905664",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.0905664",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "0.920638",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "0.920638",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.09057 to p95=0.9206 (median=0.1156, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.0906, 0.921), Reject p5-p95: (0.0972, 0.944). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "qrse_sqi": {
+    "name": "qrse_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "1.22533",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "1.22533",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "1.5875",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "1.5875",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=1.225 to p95=1.588 (median=1.432, n=400). Accept/reject distributions overlap. Accept p5-p95: (1.23, 1.59), Reject p5-p95: (1.25, 5.52). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "hfe_sqi": {
+    "name": "hfe_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.117641",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.117641",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "0.190498",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "0.190498",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.1176 to p95=0.1905 (median=0.1412, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.118, 0.19), Reject p5-p95: (0.0576, 7.27). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "qrsa_sqi": {
+    "name": "qrsa_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.0450387",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.0450387",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "0.12275",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "0.12275",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.04504 to p95=0.1228 (median=0.07406, n=23). Accept/reject distributions overlap. Accept p5-p95: (0.045, 0.123), Reject p5-p95: (0.0479, 1.23). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "dtw_sqi": {
+    "name": "dtw_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "36.1167",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "36.1167",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "44.3957",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "44.3957",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=36.12 to p95=44.4 (median=37.95, n=400). Accept/reject distributions overlap. Accept p5-p95: (36.1, 44.4), Reject p5-p95: (32.4, 44.8). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "pnn_sqi": {
+    "name": "pnn_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "16.3455",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "16.3455",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "100",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "100",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=16.35 to p95=100 (median=95.07, n=400). Accept/reject distributions overlap. Accept p5-p95: (16.3, 100), Reject p5-p95: (19.6, 100). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "peak_frequency_sqi": {
+    "name": "peak_frequency_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.0400391",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.0400391",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "0.136816",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "0.136816",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.04004 to p95=0.1368 (median=0.09766, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.04, 0.137), Reject p5-p95: (0.04, 0.146). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "absolute_power_sqi": {
+    "name": "absolute_power_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "365.771",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "365.771",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "222709",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "222709",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=365.8 to p95=2.227e+05 (median=1.226e+04, n=400). Accept/reject distributions overlap. Accept p5-p95: (366, 2.23e+05), Reject p5-p95: (388, 3.15e+05). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "log_power_sqi": {
+    "name": "log_power_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "81.3559",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "81.3559",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "803.076",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "803.076",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=81.36 to p95=803.1 (median=494, n=400). Accept/reject distributions overlap. Accept p5-p95: (81.4, 803), Reject p5-p95: (84, 822). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "relative_power_sqi": {
+    "name": "relative_power_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.00160651",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.00160651",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "0.401644",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "0.401644",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.001607 to p95=0.4016 (median=0.08743, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.00161, 0.402), Reject p5-p95: (0.00184, 0.544). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "normalized_power_sqi": {
+    "name": "normalized_power_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "45.0577",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "45.0577",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "26264.1",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "26264.1",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=45.06 to p95=2.626e+04 (median=1338, n=400). Accept/reject distributions overlap. Accept p5-p95: (45.1, 2.63e+04), Reject p5-p95: (48.9, 4.4e+04). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "sd1": {
+    "name": "sd1",
+    "def": [
+      {
+        "op": ">",
+        "value": "82.2555",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "82.2555",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "742.142",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "742.142",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=82.26 to p95=742.1 (median=528.2, n=400). Accept/reject distributions overlap. Accept p5-p95: (82.3, 742), Reject p5-p95: (86.3, 756). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "sd2": {
+    "name": "sd2",
+    "def": [
+      {
+        "op": ">",
+        "value": "73.9686",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "73.9686",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "463.747",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "463.747",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=73.97 to p95=463.7 (median=257.2, n=400). Accept/reject distributions overlap. Accept p5-p95: (74, 464), Reject p5-p95: (82.7, 590). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "area": {
+    "name": "area",
+    "def": [
+      {
+        "op": ">",
+        "value": "70767.8",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "70767.8",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "946859",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "946859",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=7.077e+04 to p95=9.469e+05 (median=3.362e+05, n=400). Accept/reject distributions overlap. Accept p5-p95: (7.08e+04, 9.47e+05), Reject p5-p95: (6.73e+04, 1.2e+06). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "ratio": {
+    "name": "ratio",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.285965",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.285965",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "7.49179",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "7.49179",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.286 to p95=7.492 (median=2.116, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.286, 7.49), Reject p5-p95: (0.294, 5.85). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "nn_mean_sqi": {
+    "name": "nn_mean_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "876.625",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "876.625",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "1367.5",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "1367.5",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=876.6 to p95=1368 (median=1101, n=400). Accept/reject distributions overlap. Accept p5-p95: (877, 1.37e+03), Reject p5-p95: (714, 1.36e+03). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "hr_median_sqi": {
+    "name": "hr_median_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "39.3382",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "39.3382",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "80",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "80",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=39.34 to p95=80 (median=58.87, n=400). Accept/reject distributions overlap. Accept p5-p95: (39.3, 80), Reject p5-p95: (40, 92.3). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "hr_range_sqi": {
+    "name": "hr_range_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "60.0508",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "60.0508",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0 to p95=60.05 (median=23.86, n=400). Accept/reject distributions overlap. Accept p5-p95: (0, 60.1), Reject p5-p95: (0, 46.2). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "clipping_sqi": {
+    "name": "clipping_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.000260417",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.000260417",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "0.000520833",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "0.000520833",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.0002604 to p95=0.0005208 (median=0.0002604, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.00026, 0.000521), Reject p5-p95: (0.00026, 0.000521). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "baseline_wander_sqi": {
+    "name": "baseline_wander_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.191049",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.191049",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "0.680844",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "0.680844",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.191 to p95=0.6808 (median=0.2667, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.191, 0.681), Reject p5-p95: (0.0244, 0.69). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "spectral_snr_sqi": {
+    "name": "spectral_snr_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "-6.59212",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "-6.59212",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "-3.37073",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "-3.37073",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=-6.592 to p95=-3.371 (median=-4.885, n=400). Accept/reject distributions overlap. Accept p5-p95: (-6.59, -3.37), Reject p5-p95: (-13.4, -3.71). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "amplitude_consistency_sqi": {
+    "name": "amplitude_consistency_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "0.0193574",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "0.0193574",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic PPG signals. Accept region: p5=0 to p95=0.01936 (median=0.004703, n=400). Accept/reject distributions overlap. Accept p5-p95: (0, 0.0194), Reject p5-p95: (9.67e-17, 0.385). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "rr_irregularity_sqi": {
+    "name": "rr_irregularity_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.0329001",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.0329001",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "1.23856",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "1.23856",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.0329 to p95=1.239 (median=0.7178, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.0329, 1.24), Reject p5-p95: (0.0443, 1.24). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "sample_entropy_sqi": {
+    "name": "sample_entropy_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.0307319",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.0307319",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "0.513889",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "0.513889",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.03073 to p95=0.5139 (median=0.1352, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.0307, 0.514), Reject p5-p95: (0.0316, 1.85). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "dfa_sqi": {
+    "name": "dfa_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.0686071",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.0686071",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "1.70646",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "1.70646",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.06861 to p95=1.706 (median=0.2742, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.0686, 1.71), Reject p5-p95: (0.0704, 1.63). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
+  },
+  "hurst_sqi": {
+    "name": "hurst_sqi",
+    "def": [
+      {
+        "op": ">",
+        "value": "0.090639",
+        "label": "accept"
+      },
+      {
+        "op": "<=",
+        "value": "0.090639",
+        "label": "reject"
+      },
+      {
+        "op": ">=",
+        "value": "0.970955",
+        "label": "reject"
+      },
+      {
+        "op": "<",
+        "value": "0.970955",
+        "label": "accept"
+      }
+    ],
+    "desc": "Calibrated from synthetic ECG signals. Accept region: p5=0.09064 to p95=0.971 (median=0.4965, n=400). Accept/reject distributions overlap. Accept p5-p95: (0.0906, 0.971), Reject p5-p95: (0.189, 0.948). Consider using a more discriminative SQI or tighter noise conditions.",
+    "ref": "vital_sqi.calibration"
   }
 }

@@ -148,7 +148,8 @@ class TestRuleClass(object):
         out = Rule("test_sqi")
         assert out.write_rule() == ""
 
-    def test_on_save_nonexistent_file_for_overwrite(self):
+    def test_on_save_nonexistent_file_for_overwrite(self, tmp_path):
         rule_obj = Rule("test_sqi")
+        missing = str(tmp_path / "truly_missing_file.json")
         with pytest.raises(FileNotFoundError, match="File to overwrite does not exist"):
-            rule_obj.save_def("nonexistent_path.json", overwrite=True)
+            rule_obj.save_def(missing, overwrite=True)

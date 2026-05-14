@@ -89,10 +89,11 @@ To improve SQI computations, preprocess your signals with **VitalDSP**. For exam
 
    .. code-block:: python
 
-      from vitalDSP.filters import bandpass_filter
+      from vitalDSP.signal_processing.signal_filtering import SignalFiltering
 
       # Apply bandpass filter (0.5-5 Hz for PPG)
-      filtered_signal = bandpass_filter(signal, fs=100, lowcut=0.5, highcut=5)
+      sf = SignalFiltering(signal, fs=100)
+      filtered_signal = sf.bandpass_filter(lowcut=0.5, highcut=5)
 
 3. **Recompute SQIs**:
    Use the filtered signal with **vital_sqi**:
@@ -114,16 +115,17 @@ Here’s a complete example workflow to compute and analyze SQIs:
 
    import pandas as pd
    import matplotlib.pyplot as plt
-   from vitalDSP.filters import bandpass_filter
+   from vitalDSP.signal_processing.signal_filtering import SignalFiltering
    from vital_sqi.sqi.standard_sqi import perfusion_sqi, kurtosis_sqi
 
    # Load signal
    data = pd.read_csv("path/to/your_signal.csv")
-   signal = data["PPG"]
+   signal = data["PPG"].values
    timestamps = data["Time"]
 
    # Preprocess the signal
-   filtered_signal = bandpass_filter(signal, fs=100, lowcut=0.5, highcut=5)
+   sf = SignalFiltering(signal, fs=100)
+   filtered_signal = sf.bandpass_filter(lowcut=0.5, highcut=5)
 
    # Compute SQIs
    perfusion_score = perfusion_sqi(filtered_signal)
@@ -149,6 +151,6 @@ Next Steps
 Congratulations! You've successfully computed Signal Quality Indexes for your physiological signals. To learn more:
 - Explore the available SQIs in :doc:`introduction`.
 - Check out advanced workflows using :doc:`VitalDSP <../vitalDSP/introduction>` for preprocessing.
-- Dive into documentation on :doc:`pipelines` for integrating SQIs into larger projects.
+- Dive into documentation on :doc:`../docstring/vital_sqi.pipeline` for integrating SQIs into larger projects.
 
 Happy coding!

@@ -6,7 +6,9 @@ These SQIs are based on the paper by Elgendi, Mohamed:
 """
 
 import numpy as np
+import warnings
 from scipy.stats import kurtosis, skew, entropy
+import scipy.signal as sn
 
 
 def perfusion_sqi(x, y):
@@ -103,7 +105,7 @@ def entropy_sqi(x, qk=None, base=None, axis=0):
     x = np.array(x)
     x_shifted = x - np.min(x)  # Shift x to non-negative
     if np.sum(x_shifted) == 0:
-        raise ValueError("The sum of the input signal is zero; cannot compute entropy.")
+        return 0.0
     prob_dist = x_shifted / np.sum(x_shifted)  # Normalize to probability distribution
     return entropy(prob_dist, qk=qk, base=base, axis=axis)
 
@@ -194,3 +196,127 @@ def mean_crossing_rate_sqi(y, threshold=1e-10, ref_magnitude=None, pad=True, axi
     return zero_crossings_rate_sqi(
         mean_shifted_y, threshold=threshold, ref_magnitude=ref_magnitude, axis=axis
     )
+
+
+def clipping_sqi(signal, eps_pct=0.001):
+    """
+    Estimate the fraction of samples at or near the signal's amplitude rail.
+
+    Clipped or saturated sensors produce runs of samples stuck at the minimum
+    or maximum value.  A clean signal should have fewer than ~1% clipped
+    samples; heavily saturated signals can exceed 5-10%.
+
+    Parameters
+    ----------
+    signal : array_like
+        Input signal.
+    eps_pct : float, optional
+        Tolerance as a fraction of the peak-to-peak range used to define
+        "near the rail" (default ``0.001``, i.e. 0.1% of range).
+
+    Returns
+    -------
+    float
+        Fraction of samples in ``[0, 1]`` that are within *eps_pct* of the
+        minimum or maximum value.  Returns ``0.0`` for constant signals and
+        ``np.nan`` for empty input.
+    """
+    signal = np.asarray(signal, dtype=float)
+    if signal.size == 0:
+        return np.nan
+    rng = np.max(signal) - np.min(signal)
+    if rng == 0:
+        return 0.0
+    eps = eps_pct * rng
+    clipped = np.sum(
+        (signal <= np.min(signal) + eps) | (signal >= np.max(signal) - eps)
+    )
+    return float(clipped) / signal.size
+
+
+def baseline_wander_sqi(signal, sampling_rate=100):
+    """
+    Quantify low-frequency baseline drift relative to total signal energy.
+
+    Baseline wander (< 0.5 Hz) is caused by respiration, motion, and
+    electrode movement.  High baseline wander indicates a noisy recording.
+    The metric is the ratio of LF STFT energy to total STFT energy.
+
+    Parameters
+    ----------
+    signal : array_like
+        Input signal.
+    sampling_rate : int, optional
+        Sampling frequency in Hz (default ``100``).
+
+    Returns
+    -------
+    float
+        Ratio of energy below 0.5 Hz to total energy, in ``[0, 1]``.
+        Returns ``np.nan`` if total energy is zero or the signal is too short.
+    """
+    signal = np.asarray(signal, dtype=float)
+    if signal.size < 4:
+        return np.nan
+    nperseg = min(256, signal.size)
+    f, _, spec = sn.stft(
+        signal,
+        fs=sampling_rate,
+        window="hann",
+        nperseg=nperseg,
+        noverlap=nperseg // 2,
+        return_onesided=True,
+    )
+    power = np.abs(spec) ** 2
+    total = np.sum(power)
+    if total == 0:
+        return np.nan
+    lf_idx = f < 0.5
+    lf = np.sum(power[lf_idx])
+    return float(lf / total)
+
+
+def spectral_snr_sqi(signal, sampling_rate=100, signal_band=None):
+    """
+    Estimate signal-to-noise ratio as in-band power over out-of-band power.
+
+    Uses the STFT to separate physiological-band energy from noise-band
+    energy.  Defaults assume a PPG signal (0.5-4 Hz physiological band).
+    For ECG use ``signal_band=[0.5, 40]``.
+
+    Parameters
+    ----------
+    signal : array_like
+        Input signal.
+    sampling_rate : int, optional
+        Sampling frequency in Hz (default ``100``).
+    signal_band : list of float, optional
+        ``[low_hz, high_hz]`` of the physiological frequency band.
+        Defaults to ``[0.5, 4.0]`` (PPG heart rate band).
+
+    Returns
+    -------
+    float
+        SNR in dB (``10 * log10(in_band / out_of_band)``).
+        Returns ``np.nan`` if out-of-band power is zero or signal is too short.
+    """
+    signal = np.asarray(signal, dtype=float)
+    if signal.size < 4:
+        return np.nan
+    if signal_band is None:
+        signal_band = [0.5, 4.0]
+    nperseg = min(256, signal.size)
+    f, _, spec = sn.stft(
+        signal,
+        fs=sampling_rate,
+        window="hann",
+        nperseg=nperseg,
+        noverlap=nperseg // 2,
+        return_onesided=True,
+    )
+    power = np.sum(np.abs(spec) ** 2, axis=1)
+    in_band = np.sum(power[(f >= signal_band[0]) & (f <= signal_band[1])])
+    out_band = np.sum(power[(f < signal_band[0]) | (f > signal_band[1])])
+    if out_band == 0:
+        return np.nan
+    return float(10 * np.log10(in_band / out_band))
