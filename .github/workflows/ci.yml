@@ -31,14 +31,17 @@ jobs:
           pip install -e .
 
       - name: Set up Chrome and ChromeDriver
+        id: setup-chrome
         uses: browser-actions/setup-chrome@v1
         with:
-          chrome-version: latest
+          chrome-version: stable
           install-chromedriver: true
 
       - name: Run tests with coverage
         env:
           DISPLAY: :99.0
+          CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
+          CHROMEDRIVER_PATH: ${{ steps.setup-chrome.outputs.chromedriver-path }}
         run: |
           Xvfb :99 & sleep 3
           pytest --cov=vital_sqi --cov-config=.coveragerc --cov-report=xml:coverage.xml --cov-report=term-missing tests
