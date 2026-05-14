@@ -25,6 +25,8 @@ def perfusion_sqi(x, y):
     float
         Perfusion SQI, calculated as [(max(y) - min(y)) / abs(mean(x))] * 100.
     """
+    if np.abs(np.mean(x)) < 1e-10:
+        return np.nan
     return ((np.max(y) - np.min(y)) / np.abs(np.mean(x))) * 100
 
 
@@ -100,12 +102,13 @@ def entropy_sqi(x, qk=None, base=None, axis=0):
     float or ndarray
         Entropy value(s) of the signal.
     """
-    x = np.array(x)
-    x_shifted = x - np.min(x)  # Shift x to non-negative
-    if np.sum(x_shifted) == 0:
-        raise ValueError("The sum of the input signal is zero; cannot compute entropy.")
-    prob_dist = x_shifted / np.sum(x_shifted)  # Normalize to probability distribution
-    return entropy(prob_dist, qk=qk, base=base, axis=axis)
+    x = np.array(x, dtype=float).ravel()
+    if len(x) == 0:
+        raise ValueError("Input signal is empty; cannot compute entropy.")
+    counts, _ = np.histogram(x, bins="auto")
+    counts = counts[counts > 0]
+    prob_dist = counts / counts.sum()
+    return entropy(prob_dist, qk=None, base=base)
 
 
 def signal_to_noise_sqi(a, axis=0, ddof=0):
@@ -138,10 +141,17 @@ def zero_crossings_rate_sqi(y, threshold=1e-10, ref_magnitude=None, axis=-1):
     """
     Calculates the zero-crossing rate, the rate of sign changes in the signal.
 
+    .. note::
+        This counts crossings of the **absolute zero** level. For signals with
+        a non-zero DC baseline (e.g. raw PPG/ECG), the signal may never cross
+        zero, making this metric meaningless. Use
+        :func:`mean_crossing_rate_sqi` instead, which subtracts the mean first.
+
     Parameters
     ----------
     y : array_like
-        Input signal.
+        Input signal. Should be mean-centred before calling this function
+        for physiologically meaningful results.
     threshold : float, optional
         Threshold for clipping values close to zero (default is 1e-10).
     ref_magnitude : float, optional

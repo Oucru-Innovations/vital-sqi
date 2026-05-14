@@ -128,7 +128,8 @@ class TestRuleClass(object):
     def test_on_apply_rule_no_boundaries(self):
         out = Rule("test_sqi")
         out.rule = {"def": [], "boundaries": [], "labels": []}
-        assert out.apply_rule(10) is None
+        # With no boundaries defined, any value falls outside all intervals → reject
+        assert out.apply_rule(10) == "reject"
 
     def test_on_apply_rule_outside_boundaries(self):
         out = Rule("test_sqi")
@@ -148,7 +149,15 @@ class TestRuleClass(object):
         out = Rule("test_sqi")
         assert out.write_rule() == ""
 
-    def test_on_save_nonexistent_file_for_overwrite(self):
+    def test_on_save_nonexistent_file_for_overwrite(self, tmp_path):
+        # overwrite=True with a nonexistent file should create it (not raise)
         rule_obj = Rule("test_sqi")
-        with pytest.raises(FileNotFoundError, match="File to overwrite does not exist"):
-            rule_obj.save_def("nonexistent_path.json", overwrite=True)
+        rule_obj.update_def(
+            op_list=[">", "<=", ">=", "<"],
+            value_list=[0.1, 0.1, 0.9, 0.9],
+            label_list=["accept", "reject", "reject", "accept"],
+        )
+        out_path = str(tmp_path / "new_rule.json")
+        rule_obj.save_def(out_path, overwrite=True)
+        import os
+        assert os.path.isfile(out_path)

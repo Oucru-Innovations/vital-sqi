@@ -87,7 +87,7 @@ def ectopic_sqi(
         )
         number_outliers = np.isnan(rr_intervals_cleaned).sum()
         total_rr_intervals = len(rr_intervals_cleaned)
-        outlier_ratio = number_outliers / max(total_rr_intervals - number_outliers, 1)
+        outlier_ratio = number_outliers / max(total_rr_intervals, 1)
 
         if rule_index == 0:
             return outlier_ratio
@@ -101,7 +101,7 @@ def ectopic_sqi(
             interpolated_rr_intervals, method=selected_rule
         )
         number_ectopics = np.isnan(nn_intervals).sum()
-        ectopic_ratio = number_ectopics / max(len(nn_intervals) - number_ectopics, 1)
+        ectopic_ratio = number_ectopics / max(len(nn_intervals), 1)
 
         return ectopic_ratio
 
@@ -301,8 +301,15 @@ def msq_sqi(s, peak_detector_1=7, peak_detector_2=6, wave_type="PPG"):
                 s, detector_type=peak_detector_2, preprocess=False
             )
         else:
-            peaks_1, _ = detector.ecg_detector(s)
-            peaks_2, _ = detector.ecg_detector(s)
+            # ECG MSQ requires two *different* detectors; both paths currently use the
+            # same vitalDSP WaveformMorphology, so intersection == union == 1.0.
+            # Until Phase 2 lands a real Pan-Tompkins, warn and return NaN.
+            warnings.warn(
+                "msq_sqi for ECG requires two distinct detectors. "
+                "Phase 2 will add Pan-Tompkins. Returning NaN for now.",
+                RuntimeWarning,
+            )
+            return np.nan
 
         # Check if either detector found no peaks
         if len(peaks_1) == 0 or len(peaks_2) == 0:

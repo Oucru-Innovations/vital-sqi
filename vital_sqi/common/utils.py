@@ -68,7 +68,7 @@ def get_nn(
         rr_intervals = transformer.process_rr_intervals(
             impute_invalid=False, remove_invalid=remove_ectopic_beat
         )
-        nn_intervals_non_na = np.where(np.isnan(rr_intervals), -1, rr_intervals)
+        nn_intervals_non_na = rr_intervals[~np.isnan(rr_intervals)]
         return nn_intervals_non_na
     except Exception as e:
         logging.error(f"Error in get_nn function: {e}")
@@ -158,7 +158,7 @@ def calculate_sampling_rate(timestamps):
             logging.error("No positive time differences found.")
             return None
 
-        min_step = np.min(time_diffs)
+        min_step = np.median(time_diffs)
         sampling_rate = round(1 / min_step, 3)
         return sampling_rate
     except Exception as e:
@@ -562,7 +562,7 @@ def get_value_label_list(df, boundaries, interval_label_list):
     return value_label_list
 
 
-def cut_segment(df, milestones):
+def cut_segment(df, milestones, yield_mode=False):
     """
     Splits a DataFrame into segments based on the start and end indices provided in the milestones DataFrame.
 
@@ -572,11 +572,14 @@ def cut_segment(df, milestones):
         Signal DataFrame containing the full data to be segmented.
     milestones : pd.DataFrame
         DataFrame containing 'start' and 'end' columns, representing the start and end indices for each segment.
+    yield_mode : bool, optional
+        When True, return a generator instead of a list. Useful for large recordings
+        where materialising all segments at once would be memory-intensive. Default False.
 
     Returns
     -------
-    list of pd.DataFrame
-        A list of DataFrame segments based on the specified start and end indices.
+    list of pd.DataFrame or generator of pd.DataFrame
+        DataFrame segments based on the specified start and end indices.
 
     Raises
     ------
@@ -584,7 +587,6 @@ def cut_segment(df, milestones):
         If milestones is not a DataFrame or if 'start' and 'end' columns are missing.
         If start and end indices are out of bounds.
     """
-    # Check milestones format and columns
     assert isinstance(milestones, pd.DataFrame), (
         "Milestones must be a DataFrame with 'start' and 'end' columns. "
         "Use `format_milestone` to prepare the milestone DataFrame if needed."
@@ -593,27 +595,22 @@ def cut_segment(df, milestones):
         "start" in milestones.columns and "end" in milestones.columns
     ), "Milestones DataFrame must contain 'start' and 'end' columns."
 
-    # Initialize list to hold segmented DataFrames
-    segmented_dfs = []
+    def _generate():
+        for _, row in milestones.iterrows():
+            start, end = int(row["start"]), int(row["end"])
+            if start < 0 or end > len(df):
+                raise ValueError(
+                    f"Segment index out of bounds: start={start}, end={end}, length={len(df)}"
+                )
+            if start >= end:
+                raise ValueError(
+                    f"Start index must be less than end index: start={start}, end={end}"
+                )
+            yield df.iloc[start:end]
 
-    # Loop over each milestone row to cut segments
-    for _, row in milestones.iterrows():
-        start, end = int(row["start"]), int(row["end"])
-
-        # Check that start and end are within DataFrame bounds
-        if start < 0 or end > len(df):
-            raise ValueError(
-                f"Segment index out of bounds: start={start}, end={end}, length={len(df)}"
-            )
-        if start >= end:
-            raise ValueError(
-                f"Start index must be less than end index: start={start}, end={end}"
-            )
-
-        # Slice DataFrame for the given segment and append to list
-        segmented_dfs.append(df.iloc[start:end])
-
-    return segmented_dfs
+    if yield_mode:
+        return _generate()
+    return list(_generate())
 
 
 def format_milestone(start_milestone, end_milestone):
@@ -688,7 +685,30 @@ def check_signal_format(s):
     return s
 
 
-def create_rule_def(sqi_name, upper_bound=0, lower_bound=1):
+def sanitize_sqi(values):
+    """
+    Replace inf/-inf with NaN, then fill NaN with the column median.
+
+    Parameters
+    ----------
+    values : array-like
+        SQI values that may contain inf, -inf, or NaN.
+
+    Returns
+    -------
+    np.ndarray
+        Cleaned float array of the same length with no inf or NaN values.
+    """
+    v = np.array(values, dtype=float)
+    v[~np.isfinite(v)] = np.nan
+    if np.all(np.isnan(v)):
+        return np.zeros(len(v))
+    med = np.nanmedian(v)
+    v[np.isnan(v)] = med
+    return v
+
+
+def create_rule_def(sqi_name, lower_bound=0, upper_bound=1):
     """
     Creates a default rule definition for SQI.
 
@@ -696,10 +716,10 @@ def create_rule_def(sqi_name, upper_bound=0, lower_bound=1):
     ----------
     sqi_name : str
         Name of the SQI.
-    upper_bound : float, optional
-        Upper bound for acceptance (default is 0).
     lower_bound : float, optional
-        Lower bound for acceptance (default is 1).
+        Lower bound for acceptance (default is 0).
+    upper_bound : float, optional
+        Upper bound for acceptance (default is 1).
 
     Returns
     -------

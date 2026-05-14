@@ -87,11 +87,16 @@ def remove_unchanged(s, sampling_rate, duration=10, output_signal=True):
                 start_cut_pivot.append(segment[0])
                 end_cut_pivot.append(segment[-1] + 1)
 
-        # Handle edge cases at start and end of the signal
+        # Handle edge cases at start and end of the signal.
+        # Both lists must stay the same length — remove paired entries.
         if start_cut_pivot and start_cut_pivot[0] == 0:
             start_cut_pivot.pop(0)
+            if end_cut_pivot:
+                end_cut_pivot.pop(0)
         if end_cut_pivot and end_cut_pivot[-1] >= len(signal_array):
             end_cut_pivot.pop(-1)
+            if start_cut_pivot:
+                start_cut_pivot.pop(-1)
 
         # If no valid segments remain after filtering
         if not start_cut_pivot and not end_cut_pivot:
@@ -195,7 +200,7 @@ def trim_signal(s, sampling_rate, duration_left=300, duration_right=300):
     ), "Expected numeric duration or None."
 
     duration_left, duration_right = duration_left or 0, duration_right or 0
-    trim_length = int((duration_left + duration_right) * sampling_rate * 2)
+    trim_length = int((duration_left + duration_right) * sampling_rate)
 
     if trim_length > len(s):
         warnings.warn(
@@ -246,6 +251,9 @@ def interpolate_signal(s, missing_index, missing_len, method="arima", lag_ratio=
         start_seg = max(0, pos - seg_len)
         ts_segment = s.iloc[start_seg:pos, 1]
 
+        end_idx = pos + num_missing
+        end_val = filled_signal[end_idx] if end_idx < len(filled_signal) else filled_signal[-1]
+
         if method == "arima":
             if len(ts_segment) < 3:
                 # Skip interpolation if the segment is too short for ARIMA
@@ -254,7 +262,7 @@ def interpolate_signal(s, missing_index, missing_len, method="arima", lag_ratio=
                 )
                 forecast = np.linspace(
                     filled_signal[pos - 1],
-                    filled_signal[pos + num_missing],
+                    end_val,
                     num=num_missing,
                 ).tolist()
             else:
@@ -280,7 +288,7 @@ def interpolate_signal(s, missing_index, missing_len, method="arima", lag_ratio=
                     )
                     forecast = np.linspace(
                         filled_signal[pos - 1],
-                        filled_signal[pos + num_missing],
+                        end_val,
                         num=num_missing,
                     ).tolist()
 

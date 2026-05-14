@@ -100,7 +100,7 @@ def sdsd_sqi(nn_intervals):
         if len(nn_intervals) < 2:
             warnings.warn("Insufficient NN intervals for SDSD calculation.")
             return np.nan
-        return np.std(np.diff(nn_intervals))
+        return np.std(np.diff(nn_intervals), ddof=1)
     except Exception as e:
         warnings.warn(f"Error in sdsd_sqi: {e}")
         return np.nan
@@ -382,13 +382,19 @@ def frequency_sqi(nn_intervals, freq_min=0.04, freq_max=0.15, metric="peak"):
     band_powers = powers[(freqs >= freq_min) & (freqs < freq_max)]
 
     if metric == "peak":
-        return freqs[np.argmax(band_powers)] if band_powers.size > 0 else np.nan
+        # Returns the peak frequency (Hz) in the band, not a power value.
+        # Use metric="absolute" or "relative" for a power SQI score.
+        return freqs[(freqs >= freq_min) & (freqs < freq_max)][np.argmax(band_powers)] if band_powers.size > 0 else np.nan
     elif metric == "absolute":
         return np.sum(band_powers)
     elif metric == "log":
         return np.sum(np.log(band_powers + 1e-10))
     elif metric == "normalized":
-        return np.sum(np.linalg.norm(band_powers + 1e-10))
+        # Normalized power: band_power / (total_power − VLF_power).
+        # VLF is defined as 0–0.04 Hz per HRV Task Force guidelines.
+        vlf_power = np.sum(powers[freqs < 0.04])
+        denom = np.sum(powers) - vlf_power
+        return np.sum(band_powers) / denom if denom > 0 else np.nan
     elif metric == "relative":
         total_power = np.sum(powers)
         return np.sum(band_powers) / total_power if total_power > 0 else np.nan
@@ -462,7 +468,7 @@ def poincare_features_sqi(nn_intervals):
 
         differences = np.diff(nn_intervals)
         sd1 = np.sqrt(np.std(differences, ddof=1) ** 2 / 2)
-        sd2 = np.sqrt(2 * np.std(nn_intervals, ddof=1) ** 2 - sd1**2)
+        sd2 = np.sqrt(np.maximum(0.0, 2 * np.std(nn_intervals, ddof=1) ** 2 - sd1**2))
         area = np.pi * sd1 * sd2
         ratio = sd1 / sd2 if sd2 != 0 else np.nan
 

@@ -127,6 +127,9 @@ def get_qualified_ppg(
     duration=30,
     overlapping=None,
     peak_detector=6,
+    auto_mode=False,
+    lower_bound=0.05,
+    upper_bound=0.95,
     segment_name=None,
     save_image=False,
     output_dir=None,
@@ -196,11 +199,14 @@ def get_qualified_ppg(
         )
 
     for i, segments in enumerate(segment_lst):
-        # Step 4: Classify SQIs
+        # Step 4: Classify SQIs (per-channel thresholds; auto_mode forwarded)
         signal_obj.ruleset, signal_obj.sqis = classify_segments(
             signal_obj.sqis,
             rule_dict_filename,
             ruleset_order,
+            auto_mode=auto_mode,
+            lower_bound=lower_bound,
+            upper_bound=upper_bound,
         )
 
         # Step 5: Handle predefined reject or generate decisions
@@ -210,7 +216,7 @@ def get_qualified_ppg(
             else ["accept"] * len(signal_obj.sqis[i])
         )
         a_segments, r_segments = get_decision_segments(
-            segments, signal_obj.sqis[0]["decision"].to_list(), reject_decision
+            segments, signal_obj.sqis[i]["decision"].to_list(), reject_decision
         )
 
         # Step 6: Save accepted and rejected segments

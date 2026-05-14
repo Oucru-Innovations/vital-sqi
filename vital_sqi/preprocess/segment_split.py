@@ -139,6 +139,11 @@ def split_segment(
     if split_type == 0:
         chunk_size = int(duration * sampling_rate)
         chunk_step = chunk_size - int(overlapping * sampling_rate)
+        if chunk_step <= 0:
+            raise ValueError(
+                f"overlapping ({overlapping}s) must be less than duration ({duration}s). "
+                f"Got chunk_step={chunk_step}."
+            )
         chunk_indices = [
             [i, min(i + chunk_size, len(s))] for i in range(0, len(s), chunk_step)
         ]
@@ -155,7 +160,7 @@ def split_segment(
         else:
             _, chunk_indices = detector.ecg_detector(np.array(sig), get_session=True)
     # Handle case when chunk_indices is empty
-    if not chunk_indices:
+    if chunk_indices is None or len(chunk_indices) == 0:
         warnings.warn("No segments could be created; returning empty lists.")
         return [], pd.DataFrame(columns=["start", "end"])
 
