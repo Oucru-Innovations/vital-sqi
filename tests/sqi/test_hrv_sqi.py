@@ -41,8 +41,8 @@ class TestHRVSQIs:
 
     def test_sdsd_sqi(self, valid_nn_intervals, short_nn_intervals):
         """Test SDSD calculation with valid and insufficient NN intervals."""
-        # Test with valid NN intervals
-        expected_sdsd = np.std(np.diff(valid_nn_intervals))
+        # Test with valid NN intervals using the correct sample std (ddof=1)
+        expected_sdsd = np.std(np.diff(valid_nn_intervals), ddof=1)
         assert sdsd_sqi(valid_nn_intervals) == pytest.approx(expected_sdsd, rel=1e-2)
 
         # Test with insufficient NN intervals
@@ -60,8 +60,9 @@ class TestHRVSQIs:
             assert np.isnan(res)  # Ensure the function returns NaN for invalid inputs
 
     def test_rmssd_sqi(self, valid_nn_intervals, short_nn_intervals):
-        # Test with valid NN intervals
-        expected_rmssd = np.std(np.diff(valid_nn_intervals))
+        # Test with valid NN intervals using the correct RMSSD formula
+        diffs = np.diff(valid_nn_intervals)
+        expected_rmssd = float(np.sqrt(np.mean(diffs ** 2)))
         assert rmssd_sqi(valid_nn_intervals) == pytest.approx(expected_rmssd, rel=1e-2)
 
         # Test with insufficient NN intervals

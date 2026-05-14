@@ -137,7 +137,7 @@ class Rule:
             raise ValueError("Invalid output file path.")
 
         if overwrite and not os.path.isfile(file_path):
-            raise FileNotFoundError("File to overwrite does not exist.")
+            overwrite = False  # no existing file to merge into; fall through to create
 
         # if overwrite:
         #     with open(file_path) as file_in:
