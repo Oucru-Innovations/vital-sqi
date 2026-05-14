@@ -40,9 +40,10 @@ def calculate_band_power(freq, power, fmin, fmax):
     try:
         if power.ndim == 2:
             power = np.mean(power, axis=1)
-        band_power = np.sum(power[(freq >= fmin) & (freq < fmax)]) / (
-            2 * len(power) ** 2
-        )
+        mask = (freq >= fmin) & (freq < fmax)
+        if not np.any(mask):
+            return 0.0
+        band_power = np.trapz(power[mask], freq[mask])
         return band_power
     except Exception as e:
         logging.error(f"Error calculating band power: {e}")
@@ -77,7 +78,7 @@ def interpolate_rr_intervals(ts_rr, bpm_list, sampling_frequency, method="linear
             ts_rr, bpm_list, kind=method, fill_value="extrapolate"
         )
         time_offset = 1 / sampling_frequency
-        ts_interpolated = np.arange(0, ts_rr[-1] - ts_rr[0], time_offset)
+        ts_interpolated = np.arange(ts_rr[0], ts_rr[-1], time_offset)
         return interpolator(ts_interpolated)
     except Exception as e:
         logging.error(f"Error in RR interval interpolation: {e}")
@@ -155,7 +156,8 @@ def calculate_psd(
         elif method == "lomb":
             freq = np.linspace(0, hr_sampling_frequency, 256)
             angular_freq = 2 * np.pi * freq
-            psd = signal.lombscargle(ts_rr, bpm_list, angular_freq, normalize=True)
+            bpm_centered = bpm_list - np.mean(bpm_list)  # remove DC offset
+            psd = signal.lombscargle(ts_rr, bpm_centered, angular_freq, normalize=True)
 
         elif method == "ar":
             freq, psd_raw = signal.periodogram(

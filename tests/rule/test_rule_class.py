@@ -128,7 +128,8 @@ class TestRuleClass(object):
     def test_on_apply_rule_no_boundaries(self):
         out = Rule("test_sqi")
         out.rule = {"def": [], "boundaries": [], "labels": []}
-        assert out.apply_rule(10) is None
+        # With no boundaries defined, any value falls outside all intervals → reject
+        assert out.apply_rule(10) == "reject"
 
     def test_on_apply_rule_outside_boundaries(self):
         out = Rule("test_sqi")

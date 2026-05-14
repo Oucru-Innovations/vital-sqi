@@ -117,7 +117,7 @@ class RuleSet:
                 raise KeyError(f"SQI {rule.name} not found in input data frame")
 
             decision = rule.apply_rule(value)
-            if decision == "reject":
+            if decision != "accept":
                 return "reject"
         return "accept"
 

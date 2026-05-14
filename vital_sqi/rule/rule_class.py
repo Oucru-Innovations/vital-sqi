@@ -104,13 +104,6 @@ class Rule:
         if any(label not in ["accept", "reject", None] for label in label_list):
             raise ValueError("Labels must be 'accept', 'reject', or None.")
 
-        for label in label_list:
-            assert (
-                isinstance(label, str) or label is None
-            ), "Label must be 'accept' or 'reject' string"
-            if label != "reject" or label != "accept":
-                label = None
-
         threshold_list = []
         for idx in range(len(label_list)):
             threshold = {
@@ -192,12 +185,15 @@ class Rule:
         """
         boundaries, labels = self.rule["boundaries"], self.rule["labels"]
 
+        if not np.isfinite(x):
+            return "reject"
+
         if x in boundaries:
             return labels[(np.where(boundaries == x)[0][0]) * 2 + 1]
 
         # Use bisect to locate the correct interval for the input value
         label_index = bisect.bisect_left(boundaries, x)
-        return labels[label_index * 2] if label_index < len(labels) else None
+        return labels[label_index * 2] if label_index < len(labels) else "reject"
 
     def write_rule(self):
         """

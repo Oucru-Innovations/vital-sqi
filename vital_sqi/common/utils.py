@@ -562,7 +562,7 @@ def get_value_label_list(df, boundaries, interval_label_list):
     return value_label_list
 
 
-def cut_segment(df, milestones):
+def cut_segment(df, milestones, yield_mode=False):
     """
     Splits a DataFrame into segments based on the start and end indices provided in the milestones DataFrame.
 
@@ -572,11 +572,14 @@ def cut_segment(df, milestones):
         Signal DataFrame containing the full data to be segmented.
     milestones : pd.DataFrame
         DataFrame containing 'start' and 'end' columns, representing the start and end indices for each segment.
+    yield_mode : bool, optional
+        When True, return a generator instead of a list. Useful for large recordings
+        where materialising all segments at once would be memory-intensive. Default False.
 
     Returns
     -------
-    list of pd.DataFrame
-        A list of DataFrame segments based on the specified start and end indices.
+    list of pd.DataFrame or generator of pd.DataFrame
+        DataFrame segments based on the specified start and end indices.
 
     Raises
     ------
@@ -584,7 +587,6 @@ def cut_segment(df, milestones):
         If milestones is not a DataFrame or if 'start' and 'end' columns are missing.
         If start and end indices are out of bounds.
     """
-    # Check milestones format and columns
     assert isinstance(milestones, pd.DataFrame), (
         "Milestones must be a DataFrame with 'start' and 'end' columns. "
         "Use `format_milestone` to prepare the milestone DataFrame if needed."
@@ -593,27 +595,22 @@ def cut_segment(df, milestones):
         "start" in milestones.columns and "end" in milestones.columns
     ), "Milestones DataFrame must contain 'start' and 'end' columns."
 
-    # Initialize list to hold segmented DataFrames
-    segmented_dfs = []
+    def _generate():
+        for _, row in milestones.iterrows():
+            start, end = int(row["start"]), int(row["end"])
+            if start < 0 or end > len(df):
+                raise ValueError(
+                    f"Segment index out of bounds: start={start}, end={end}, length={len(df)}"
+                )
+            if start >= end:
+                raise ValueError(
+                    f"Start index must be less than end index: start={start}, end={end}"
+                )
+            yield df.iloc[start:end]
 
-    # Loop over each milestone row to cut segments
-    for _, row in milestones.iterrows():
-        start, end = int(row["start"]), int(row["end"])
-
-        # Check that start and end are within DataFrame bounds
-        if start < 0 or end > len(df):
-            raise ValueError(
-                f"Segment index out of bounds: start={start}, end={end}, length={len(df)}"
-            )
-        if start >= end:
-            raise ValueError(
-                f"Start index must be less than end index: start={start}, end={end}"
-            )
-
-        # Slice DataFrame for the given segment and append to list
-        segmented_dfs.append(df.iloc[start:end])
-
-    return segmented_dfs
+    if yield_mode:
+        return _generate()
+    return list(_generate())
 
 
 def format_milestone(start_milestone, end_milestone):
