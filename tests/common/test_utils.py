@@ -35,7 +35,7 @@ def mock_signal():
 
 @pytest.fixture
 def mock_timestamps():
-    return pd.date_range(start="2023-01-01", periods=5, freq="1S")
+    return pd.date_range(start="2023-01-01", periods=5, freq="1s")
 
 
 @pytest.fixture
@@ -50,7 +50,7 @@ def mock_rule_dict():
 def mock_df():
     return pd.DataFrame(
         {
-            "timestamp": pd.date_range("2023-01-01", periods=5, freq="S"),
+            "timestamp": pd.date_range("2023-01-01", periods=5, freq="s"),
             "signal": [1, 2, 3, 4, 5],
         }
     )
@@ -60,7 +60,7 @@ def mock_df():
 def mock_df_with_labels():
     return pd.DataFrame(
         {
-            "timestamp": pd.date_range("2023-01-01", periods=5, freq="S"),
+            "timestamp": pd.date_range("2023-01-01", periods=5, freq="s"),
             "signal": [1, 2, 3, 4, 5],
             "value": [0.1, 0.2, 0.3, 0.4, 0.5],
             "op": [">", "<=", ">", "<=", "="],

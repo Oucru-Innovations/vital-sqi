@@ -87,8 +87,16 @@ def remove_unchanged(s, sampling_rate, duration=10, output_signal=True):
                 start_cut_pivot.append(segment[0])
                 end_cut_pivot.append(segment[-1] + 1)
 
+        # No flat segment long enough to remove → entire signal is valid.
+        if not start_cut_pivot and not end_cut_pivot:
+            milestones = pd.DataFrame({"start": [0], "end": [len(s)]})
+            if output_signal:
+                return cut_segment(s, milestones), milestones
+            return milestones
+
         # Handle edge cases at start and end of the signal.
         # Both lists must stay the same length — remove paired entries.
+        had_segments_before_strip = bool(start_cut_pivot)
         if start_cut_pivot and start_cut_pivot[0] == 0:
             start_cut_pivot.pop(0)
             if end_cut_pivot:
@@ -98,8 +106,9 @@ def remove_unchanged(s, sampling_rate, duration=10, output_signal=True):
             if start_cut_pivot:
                 start_cut_pivot.pop(-1)
 
-        # If no valid segments remain after filtering
-        if not start_cut_pivot and not end_cut_pivot:
+        # All flat segments touched the signal boundaries and were stripped →
+        # the whole signal was flat (nothing valid remains).
+        if had_segments_before_strip and not start_cut_pivot and not end_cut_pivot:
             milestones = pd.DataFrame(columns=["start", "end"])
             if output_signal:
                 return [], milestones

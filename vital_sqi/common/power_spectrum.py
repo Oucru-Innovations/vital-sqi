@@ -43,11 +43,12 @@ def calculate_band_power(freq, power, fmin, fmax):
         mask = (freq >= fmin) & (freq < fmax)
         if not np.any(mask):
             return 0.0
-        band_power = np.trapz(power[mask], freq[mask])
+        _trapz = getattr(np, "trapezoid", np.trapz)
+        band_power = float(_trapz(power[mask], freq[mask]))
         return band_power
     except Exception as e:
         logging.error(f"Error calculating band power: {e}")
-        return 0
+        return 0.0
 
 
 def interpolate_rr_intervals(ts_rr, bpm_list, sampling_frequency, method="linear"):

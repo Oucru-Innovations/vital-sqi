@@ -333,7 +333,8 @@ class TestP1C1_BandPowerNormalization:
         bpm = 60000 / rr
         freq, psd = welch(bpm - np.mean(bpm), fs=fs, nfft=512)
 
-        total_power = np.trapz(psd, freq)
+        _trapz = getattr(np, "trapezoid", np.trapz)
+        total_power = _trapz(psd, freq)
         band_power = calculate_band_power(freq, psd, fmin=0.0, fmax=fs / 2)
 
         # band_power must be close to total_power (same range)

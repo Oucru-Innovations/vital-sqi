@@ -16,7 +16,7 @@ def mock_signal():
     """Generate a mock signal DataFrame."""
     timestamps = pd.date_range("2023-01-01", periods=1000, freq="ms")
     signal = np.random.normal(size=1000)
-    return pd.DataFrame({"time": timestamps, "signal": signal})
+    return pd.DataFrame({"timestamps": timestamps, "signal": signal})
 
 
 @pytest.fixture
@@ -24,7 +24,7 @@ def mock_flat_signal():
     """Generate a flat signal DataFrame."""
     timestamps = pd.date_range("2023-01-01", periods=1000, freq="ms")
     signal = np.zeros(1000)
-    return pd.DataFrame({"time": timestamps, "signal": signal})
+    return pd.DataFrame({"timestamps": timestamps, "signal": signal})
 
 
 @pytest.fixture
@@ -45,7 +45,7 @@ def mock_missing_signal():
     timestamps = pd.date_range("2023-01-01", periods=100, freq="ms")
     signal = np.sin(np.linspace(0, 20, 100))
     signal[20:30] = np.nan  # Introduce missing values
-    return pd.DataFrame({"time": timestamps, "signal": signal})
+    return pd.DataFrame({"timestamps": timestamps, "signal": signal})
 
 
 def test_remove_unchanged(mock_signal, mock_flat_signal):
