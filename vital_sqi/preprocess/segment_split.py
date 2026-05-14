@@ -139,6 +139,11 @@ def split_segment(
     if split_type == 0:
         chunk_size = int(duration * sampling_rate)
         chunk_step = chunk_size - int(overlapping * sampling_rate)
+        if chunk_step <= 0:
+            raise ValueError(
+                f"overlapping ({overlapping}s) must be less than duration ({duration}s). "
+                f"Got chunk_step={chunk_step}."
+            )
         chunk_indices = [
             [i, min(i + chunk_size, len(s))] for i in range(0, len(s), chunk_step)
         ]

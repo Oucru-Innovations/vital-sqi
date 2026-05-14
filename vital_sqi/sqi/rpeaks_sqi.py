@@ -96,6 +96,7 @@ def ectopic_sqi(
         number_outliers = np.isnan(rr_intervals_cleaned).sum()
         total_rr_intervals = len(rr_intervals_cleaned)
         outlier_ratio = number_outliers / max(total_rr_intervals, 1)
+        outlier_ratio = number_outliers / max(total_rr_intervals, 1)
 
         if rule_index == 0:
             return outlier_ratio
@@ -109,6 +110,7 @@ def ectopic_sqi(
             interpolated_rr_intervals, method=selected_rule
         )
         number_ectopics = np.isnan(nn_intervals).sum()
+        ectopic_ratio = number_ectopics / max(len(nn_intervals), 1)
         ectopic_ratio = number_ectopics / max(len(nn_intervals), 1)
 
         return ectopic_ratio

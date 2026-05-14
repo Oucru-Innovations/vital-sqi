@@ -111,7 +111,7 @@ def qrs_energy_sqi(signal, sampling_rate, band=[5, 25]):
     return band_energy_sqi(signal, sampling_rate, band)
 
 
-def hf_energy_sqi(signal, sampling_rate, band=[100, np.inf]):
+def hf_energy_sqi(signal, sampling_rate, band=None):
     """
     High-Frequency Energy SQI.
 
@@ -122,17 +122,32 @@ def hf_energy_sqi(signal, sampling_rate, band=[100, np.inf]):
     sampling_rate : int
         Sampling rate of the signal.
     band : list, optional
-        Frequency band. Default is [100, np.inf].
+        Frequency band [low_hz, high_hz]. Defaults to ``[100, np.inf]``.
+        For signals sampled at 100 Hz (Nyquist = 50 Hz) this band is above
+        Nyquist and will always return 0; pass an appropriate band for the
+        actual sampling rate (e.g. ``[20, 50]`` for 100 Hz data).
 
     Returns
     -------
     float
         High-frequency energy SQI.
     """
+    import warnings
+    if band is None:
+        band = [100, np.inf]
+    nyquist = sampling_rate / 2.0
+    if band[0] >= nyquist:
+        warnings.warn(
+            f"hf_energy_sqi: band lower bound ({band[0]} Hz) is at or above Nyquist "
+            f"({nyquist} Hz) for sampling_rate={sampling_rate}. "
+            "The result will be 0. Pass a band appropriate for this sampling rate.",
+            UserWarning,
+            stacklevel=2,
+        )
     return band_energy_sqi(signal, sampling_rate, band)
 
 
-def vhf_norm_power_sqi(signal, sampling_rate, band=[150, np.inf], nperseg=2048):
+def vhf_norm_power_sqi(signal, sampling_rate, band=None, nperseg=2048):
     """
     Very High-Frequency Normalized Power SQI.
 
@@ -143,21 +158,32 @@ def vhf_norm_power_sqi(signal, sampling_rate, band=[150, np.inf], nperseg=2048):
     sampling_rate : int
         Sampling rate of the signal.
     band : list, optional
-        Frequency band. Default is [150, np.inf].
+        Frequency band [low_hz, high_hz]. Defaults to ``[150, np.inf]``.
+        For signals sampled at 100 Hz (Nyquist = 50 Hz) this band is above
+        Nyquist and will return NaN; pass a band within the Nyquist limit
+        (e.g. ``[30, 50]`` for 100 Hz data).
     nperseg : int, optional
         Length of each segment for the Short-Time Fourier Transform. Default is 2048.
 
     Returns
     -------
     float
-        Normalized power in the very high-frequency band.
-
-    Example
-    -------
-    >>> signal = np.random.randn(1000)
-    >>> vhf_norm_power_sqi(signal, sampling_rate=100)
-    0.02
+        Normalized power in the very high-frequency band, or NaN if the band
+        contains no STFT bins.
     """
+    import warnings
+    if band is None:
+        band = [150, np.inf]
+    nyquist = sampling_rate / 2.0
+    if band[0] >= nyquist:
+        warnings.warn(
+            f"vhf_norm_power_sqi: band lower bound ({band[0]} Hz) is at or above "
+            f"Nyquist ({nyquist} Hz) for sampling_rate={sampling_rate}. "
+            "Returning NaN. Pass a band appropriate for this sampling rate.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return np.nan
     if len(signal) < nperseg:
         nperseg = len(signal)
 

@@ -45,12 +45,16 @@ def dtw_distance(seq1, seq2):
     dtw_matrix = np.full((n + 1, m + 1), np.inf)
     dtw_matrix[0, 0] = 0
 
-    # Fill the DTW matrix using vectorized operations
+    # Fill the DTW matrix row by row.  The "insert" transition dtw[i, j-1]
+    # must use the already-updated value from the current row, so a cell-by-
+    # cell loop is required for correctness.
     for i in range(1, n + 1):
-        dtw_matrix[i, 1:] = cost_matrix[i - 1, :] + np.minimum(
-            np.minimum(dtw_matrix[i - 1, 1:], dtw_matrix[i, :-1]),
-            dtw_matrix[i - 1, :-1],
-        )
+        for j in range(1, m + 1):
+            dtw_matrix[i, j] = cost_matrix[i - 1, j - 1] + min(
+                dtw_matrix[i - 1, j],    # deletion
+                dtw_matrix[i, j - 1],    # insertion (updated value)
+                dtw_matrix[i - 1, j - 1],  # match
+            )
 
     return dtw_matrix[n, m]
 

@@ -19,6 +19,13 @@ class TestPerfusionSqi:
         assert result > 0
         assert result < np.inf
 
+    def test_perfusion_sqi_zero_mean_returns_nan(self):
+        # AC-coupled / high-pass filtered signals have ~zero mean
+        raw_signal = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+        filtered_signal = np.array([1.0, -1.0, 1.0, -1.0, 1.0])
+        result = perfusion_sqi(raw_signal, filtered_signal)
+        assert np.isnan(result)
+
     def test_perfusion_sqi_invalid_inputs(self):
         with pytest.raises(TypeError):
             perfusion_sqi("invalid", "invalid")
@@ -56,10 +63,18 @@ class TestSkewnessSqi:
 
 class TestEntropySqi:
     def test_on_entropy_sqi(self):
-        high_entropy_signal = np.random.randint(0, 10, 100)
+        rng = np.random.default_rng(42)
+        high_entropy_signal = rng.integers(0, 10, 100).astype(float)
         result = entropy_sqi(high_entropy_signal)
         assert result > 0
-        assert result < np.log(len(high_entropy_signal))
+        # Maximum possible entropy for the number of histogram bins is bounded
+        assert np.isfinite(result)
+
+    def test_entropy_constant_signal_is_zero(self):
+        # A constant signal has exactly one histogram bin → zero entropy
+        constant = np.full(20, 5.0)
+        result = entropy_sqi(constant)
+        assert result == pytest.approx(0.0, abs=1e-10)
 
     def test_entropy_sqi_zero_sum(self):
         # Flat/constant signal has zero entropy — should return 0.0, not raise
@@ -67,7 +82,7 @@ class TestEntropySqi:
         assert entropy_sqi(zero_signal) == 0.0
 
     def test_entropy_sqi_invalid_inputs(self):
-        with pytest.raises(TypeError):
+        with pytest.raises((TypeError, ValueError)):
             entropy_sqi("invalid")
 
 

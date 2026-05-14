@@ -8,7 +8,8 @@ from scipy.signal import resample
 from vital_sqi.common.rpeak_detection import PeakDetector
 import vital_sqi.sqi as sq
 from vital_sqi.rule import RuleSet, Rule, update_rule
-from vital_sqi.common.utils import get_nn, create_rule_def
+from vital_sqi.common.utils import get_nn, create_rule_def, sanitize_sqi
+from vital_sqi.rule.robust_classifier import classify_segments_robust, RobustResult
 from vital_sqi.preprocess.preprocess_signal import taper_signal
 import warnings
 import logging
@@ -27,6 +28,8 @@ def classify_segments(
     auto_mode=True,
     lower_bound=0.05,
     upper_bound=0.95,
+    mode="legacy",
+    robust_config=None,
 ):
     """
     Classify each segment as ``'accept'`` or ``'reject'`` using threshold rules.
@@ -106,28 +109,48 @@ def classify_segments(
             f"Rule dictionary file not found: {rule_dict_filename}"
         ) from e
 
-    rule_list = {}
-    for rule_order, rule_name in ruleset_order.items():
+    # Validate all rule names exist before processing any channel
+    for rule_name in ruleset_order.values():
         if rule_name not in rule_dict:
             raise KeyError(
                 f"Rule '{rule_name}' not found in rule_dict. "
                 f"Available rules: {list(rule_dict.keys())}"
             )
-        sqi_name = rule_dict[rule_name]["name"]
 
-        if auto_mode:
-            valid_values = (
-                sqis[0][sqi_name].replace([np.inf, -np.inf, np.nan], np.nan).dropna()
-            )
-            lower_unit = np.quantile(valid_values, lower_bound)
-            upper_unit = np.quantile(valid_values, upper_bound)
-            sqi_rule = create_rule_def(
-                sqi_name, lower_bound=lower_unit, upper_bound=upper_unit
-            )
-            rule_dict[rule_name]["def"] = sqi_rule[sqi_name]["def"]
+    # Build the list of SQI column names (not rule names) for DataFrame indexing.
+    # rule_dict[rule_name]["name"] is the actual SQI column name in the DataFrame.
+    selected_sqi = [rule_dict[rule_name]["name"] for rule_name in ruleset_order.values()]
 
-        rule = generate_rule(rule_name, rule_dict[rule_name]["def"])
-        rule_list[rule_order] = rule
+    ruleset = None
+    for i, sqi_df in enumerate(sqis):
+        # Build per-channel rule list; in auto_mode thresholds are derived from
+        # this channel's own distribution (not blindly from channel 0).
+        rule_list = {}
+        channel_rule_dict = {k: dict(v) for k, v in rule_dict.items()}
+
+        for rule_order, rule_name in ruleset_order.items():
+            sqi_name = channel_rule_dict[rule_name]["name"]
+
+            if auto_mode:
+                clean = sanitize_sqi(sqi_df[sqi_name].values)
+                valid_values = clean[np.isfinite(clean)]
+                if len(valid_values) == 0:
+                    warnings.warn(
+                        f"No valid values for '{sqi_name}' in channel {i}; "
+                        "skipping auto-mode for this rule."
+                    )
+                else:
+                    lower_unit = np.quantile(valid_values, lower_bound)
+                    upper_unit = np.quantile(valid_values, upper_bound)
+                    sqi_rule = create_rule_def(
+                        sqi_name, lower_bound=lower_unit, upper_bound=upper_unit
+                    )
+                    channel_rule_dict[rule_name]["def"] = sqi_rule[sqi_name]["def"]
+
+            # Create the Rule using the SQI column name so that RuleSet.execute
+            # can look up the value by rule.name in the SQI DataFrame.
+            rule = generate_rule(sqi_name, channel_rule_dict[rule_name]["def"])
+            rule_list[rule_order] = rule
 
     ruleset = RuleSet(rule_list)
     selected_sqi = list(ruleset_order.values())
@@ -205,10 +228,11 @@ def get_decision_segments(segments, decision, reject_decision):
         )
 
     combined_decision = [
-        map_decision(d) or map_decision(r) for d, r in zip(decision, reject_decision)
+        "reject" if (d == "reject" or r == "reject") else "accept"
+        for d, r in zip(decision, reject_decision)
     ]
-    accepted = [seg for idx, seg in enumerate(segments) if combined_decision[idx] == 0]
-    rejected = [seg for idx, seg in enumerate(segments) if combined_decision[idx] == 1]
+    accepted = [seg for seg, d in zip(segments, combined_decision) if d == "accept"]
+    rejected = [seg for seg, d in zip(segments, combined_decision) if d == "reject"]
     return accepted, rejected
 
 
@@ -272,7 +296,7 @@ def per_beat_sqi(
     if use_mean_beat and beat_list:
         mean_beat = np.mean(np.array(beat_list), axis=0)
         sqi = sqi_func(mean_beat, **kwargs)
-        sqi_vals.extend([sqi] * (len(troughs) - 1))  # One SQI per beat
+        sqi_vals.append(sqi)  # Single value for mean-beat mode
 
     if not sqi_vals:
         logging.warning("No valid beats found for SQI calculation.")
@@ -317,7 +341,15 @@ def get_sqi_dict(sqis, sqi_name):
 
     if isinstance(sqis, np.ndarray):
         sqis = sqis.tolist()
+    if isinstance(sqis, (float, int, np.floating, np.integer)):
+        return {sqi_name: sqis}
 
+    if isinstance(sqis, np.ndarray):
+        sqis = sqis.tolist()
+
+    if isinstance(sqis, list):
+        if len(sqis) == 1:
+            return {sqi_name: sqis[0]}
     if isinstance(sqis, list):
         if len(sqis) == 1:
             return {sqi_name: sqis[0]}
@@ -326,6 +358,8 @@ def get_sqi_dict(sqis, sqi_name):
             f"{sqi_name}_median_sqi": np.median(sqis),
             f"{sqi_name}_std_sqi": np.std(sqis),
         }
+
+    return {sqi_name: sqis}
 
     return {sqi_name: sqis}
 
@@ -393,6 +427,7 @@ def get_sqi(
         signal_values = s.iloc[:, 1].values
     elif isinstance(s, pd.Series):
         signal_values = s.values
+        signal_values = s.values
     else:
         signal_values = np.asarray(s)
 
@@ -404,12 +439,18 @@ def get_sqi(
         signal_values = _nn_intervals if _nn_intervals is not None else get_nn(signal_values)
 
     if per_beat:
-        # Peak detection and SQI calculation per beat
-        detector = PeakDetector()
-        if wave_type == "PPG":
-            peak_list, trough_list = detector.ppg_detector(signal_values, peak_detector)
+        # P3.1: use cached peaks when available; only detect if not provided
+        if _peak_list is not None and _trough_list is not None:
+            trough_list = _trough_list
         else:
-            peak_list, trough_list = detector.ecg_detector(signal_values, peak_detector)
+            detector = PeakDetector()
+            if wave_type == "PPG":
+                _peak_list, trough_list = detector.ppg_detector(
+                    signal_values, peak_detector
+                )
+            else:
+                result = detector.ecg_detector(signal_values, peak_detector)
+                _peak_list, trough_list = result[0], result[2]  # r_peaks, s_valleys
         sqi_scores = per_beat_sqi(
             sqi_func,
             trough_list,
@@ -427,7 +468,6 @@ def get_sqi(
             kwargs["wave_type"] = wave_type
         sqi_scores = sqi_func(signal_values, **kwargs)
 
-    # Convert SQI scores into a dictionary
     sqi_score_dict = get_sqi_dict(sqi_scores, sqi_name)
     return sqi_score_dict
 
@@ -471,6 +511,11 @@ def extract_segment_sqi(s, sqi_list, sqi_names, sqi_arg_list, wave_type):
     for sqi_func, sqi_name in zip(sqi_list, sqi_names):
         args = sqi_arg_list.get(sqi_name, {}).copy()
         args["wave_type"] = wave_type
+        # Pass pre-hoisted array and cached peaks into get_sqi
+        args["_signal_values"] = signal_values
+        if args.get("per_beat", False):
+            args["_peak_list"] = peak_list
+            args["_trough_list"] = trough_list
 
         try:
             if sqi_func.__name__ == "perfusion_sqi":
@@ -494,7 +539,7 @@ def extract_segment_sqi(s, sqi_list, sqi_names, sqi_arg_list, wave_type):
     return pd.Series(sqi_scores)
 
 
-def extract_sqi(segments, milestones, sqi_dict_filename, wave_type="PPG"):
+def extract_sqi(segments, milestones, sqi_dict_filename, wave_type="PPG", n_jobs=1):
     """
     Extract all configured SQIs for every segment and return a result DataFrame.
 
@@ -565,16 +610,21 @@ def extract_sqi(segments, milestones, sqi_dict_filename, wave_type="PPG"):
     sqi_names = list(sqi_dict.keys())
     sqi_arg_list = {name: sqi["args"] for name, sqi in sqi_dict.items()}
 
-    # Initialize an empty list to collect SQI rows
-    sqi_rows = []
-    for segment_idx, segment in enumerate(tqdm(segments)):
-        # Extract SQIs for the current segment
-        sqi_vals = extract_segment_sqi(
-            segment, sqi_list, sqi_names, sqi_arg_list, wave_type
+    # P3.3: optional parallel execution; n_jobs=1 preserves serial behaviour
+    if n_jobs == 1:
+        sqi_rows = [
+            extract_segment_sqi(seg, sqi_list, sqi_names, sqi_arg_list, wave_type)
+            for seg in tqdm(segments)
+        ]
+    else:
+        sqi_rows = Parallel(n_jobs=n_jobs, prefer="processes")(
+            delayed(extract_segment_sqi)(
+                seg, sqi_list, sqi_names, sqi_arg_list, wave_type
+            )
+            for seg in tqdm(segments)
         )
-        sqi_rows.append(sqi_vals)
 
-    # Convert collected SQI rows into a DataFrame
+    # P3.5: build DataFrame directly from collected rows (no per-segment append)
     df_sqi = pd.DataFrame(sqi_rows)
 
     # Add start and end indices from milestones

@@ -27,6 +27,8 @@ def perfusion_sqi(x, y):
     float
         Perfusion SQI, calculated as [(max(y) - min(y)) / abs(mean(x))] * 100.
     """
+    if np.abs(np.mean(x)) < 1e-10:
+        return np.nan
     return ((np.max(y) - np.min(y)) / np.abs(np.mean(x))) * 100
 
 
@@ -140,10 +142,17 @@ def zero_crossings_rate_sqi(y, threshold=1e-10, ref_magnitude=None, axis=-1):
     """
     Calculates the zero-crossing rate, the rate of sign changes in the signal.
 
+    .. note::
+        This counts crossings of the **absolute zero** level. For signals with
+        a non-zero DC baseline (e.g. raw PPG/ECG), the signal may never cross
+        zero, making this metric meaningless. Use
+        :func:`mean_crossing_rate_sqi` instead, which subtracts the mean first.
+
     Parameters
     ----------
     y : array_like
-        Input signal.
+        Input signal. Should be mean-centred before calling this function
+        for physiologically meaningful results.
     threshold : float, optional
         Threshold for clipping values close to zero (default is 1e-10).
     ref_magnitude : float, optional

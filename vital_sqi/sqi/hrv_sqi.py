@@ -101,6 +101,7 @@ def sdsd_sqi(nn_intervals):
             warnings.warn("Insufficient NN intervals for SDSD calculation.")
             return np.nan
         return np.std(np.diff(nn_intervals), ddof=1)
+        return np.std(np.diff(nn_intervals), ddof=1)
     except Exception as e:
         warnings.warn(f"Error in sdsd_sqi: {e}")
         return np.nan
@@ -512,7 +513,7 @@ def poincare_features_sqi(nn_intervals):
 
         differences = np.diff(nn_intervals)
         sd1 = np.sqrt(np.std(differences, ddof=1) ** 2 / 2)
-        sd2 = np.sqrt(2 * np.std(nn_intervals, ddof=1) ** 2 - sd1**2)
+        sd2 = np.sqrt(np.maximum(0.0, 2 * np.std(nn_intervals, ddof=1) ** 2 - sd1**2))
         area = np.pi * sd1 * sd2
         ratio = sd1 / sd2 if sd2 != 0 else np.nan
 

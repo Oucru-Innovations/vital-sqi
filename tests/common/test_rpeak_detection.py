@@ -47,11 +47,11 @@ def test_ppg_detector_methods(detector_type):
         SLOPE_SUM_METHOD,
     ]:  # Adjust if methods are unimplemented
         assert (
-            len(peaks) >= 0
-        ), f"No error during peaks detection for detector_type {detector_type}"
+            len(peaks) > 0
+        ), f"Expected at least one peak for detector_type {detector_type}"
         assert (
-            len(troughs) >= 0
-        ), f"No error during troughs detection for detector_type {detector_type}"
+            len(troughs) > 0
+        ), f"Expected at least one trough for detector_type {detector_type}"
 
 
 def test_ecg_detector():

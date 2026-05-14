@@ -144,7 +144,7 @@ class Rule:
             raise ValueError("Invalid output file path.")
 
         if overwrite and not os.path.isfile(file_path):
-            raise FileNotFoundError("File to overwrite does not exist.")
+            overwrite = False  # no existing file to merge into; fall through to create
 
         # if overwrite:
         #     with open(file_path) as file_in:
@@ -211,12 +211,15 @@ class Rule:
         """
         boundaries, labels = self.rule["boundaries"], self.rule["labels"]
 
+        if not np.isfinite(x):
+            return "reject"
+
         if x in boundaries:
             return labels[(np.where(boundaries == x)[0][0]) * 2 + 1]
 
         # Use bisect to locate the correct interval for the input value
         label_index = bisect.bisect_left(boundaries, x)
-        return labels[label_index * 2] if label_index < len(labels) else None
+        return labels[label_index * 2] if label_index < len(labels) else "reject"
 
     def write_rule(self):
         """
