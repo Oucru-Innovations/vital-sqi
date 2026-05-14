@@ -8,7 +8,8 @@ from scipy.signal import resample
 from vital_sqi.common.rpeak_detection import PeakDetector
 import vital_sqi.sqi as sq
 from vital_sqi.rule import RuleSet, Rule, update_rule
-from vital_sqi.common.utils import get_nn, create_rule_def
+from vital_sqi.common.utils import get_nn, create_rule_def, sanitize_sqi
+from vital_sqi.rule.robust_classifier import classify_segments_robust, RobustResult
 from vital_sqi.preprocess.preprocess_signal import taper_signal
 import warnings
 import logging
@@ -24,31 +25,68 @@ def classify_segments(
     auto_mode=True,
     lower_bound=0.05,
     upper_bound=0.95,
+    mode="legacy",
+    robust_config=None,
 ):
     """
     Classify each segment based on SQI thresholds and return the decision per segment.
 
     Parameters
     ----------
-    sqis : DataFrame
-        A DataFrame containing SQI values for each segment.
+    sqis : list of DataFrame
+        A list of DataFrames (one per channel) containing SQI values for each segment.
     rule_dict_filename : str
         Path to the JSON file defining thresholds for each SQI.
     ruleset_order : dict
         Specifies the order of the rules in the ruleset.
     auto_mode : bool
-        Enables automatic threshold adjustment based on quantiles.
+        Enables automatic threshold adjustment based on quantiles (legacy mode only).
     lower_bound, upper_bound : float
-        Quantiles for the lower and upper bounds of threshold adjustment.
+        Quantiles for the lower and upper bounds of threshold adjustment (legacy only).
+    mode : str
+        "legacy" (default) — rule-based AND-logic classifier.
+        "robust" — rank+IQR consensus with automatic regime detection.
+        Mutually exclusive with auto_mode when mode="robust".
+    robust_config : dict, optional
+        Override thresholds for the robust classifier. See
+        `vital_sqi.rule.robust_classifier.classify_segments_robust`.
 
     Returns
     -------
-    rule_list : dict
-        Dictionary containing rule names and corresponding Rule objects.
-    sqis : DataFrame
-        Updated DataFrame with decisions ('accept' or 'reject') for each segment.
+    ruleset_or_result : RuleSet or RobustResult
+        Legacy: the last channel's RuleSet.
+        Robust: a RobustResult for the last channel processed.
+    sqis : list of DataFrame
+        Updated list with "decision" column (and "score" column in robust mode).
+
+    Notes
+    -----
+    In robust mode, each SQI DataFrame also gains a ``score`` column (float in
+    [0, 1]) and ``signal_obj.regime_info`` should be populated by the caller from
+    ``result.regime_info``.
     """
-    # Load rule dictionary
+    if mode not in ("legacy", "robust"):
+        raise ValueError(f"mode must be 'legacy' or 'robust', got '{mode}'")
+
+    # --- Robust path ---
+    if mode == "robust":
+        last_result = None
+        for i, sqi_df in enumerate(sqis):
+            sqi_cols = [
+                c for c in sqi_df.columns
+                if c not in ("start_idx", "end_idx", "decision", "score")
+            ]
+            result = classify_segments_robust(
+                sqi_df, sqi_names=sqi_cols, config=robust_config
+            )
+            sqi_df = sqi_df.copy()
+            sqi_df["score"] = result.scores
+            sqi_df["decision"] = result.decisions
+            sqis[i] = sqi_df
+            last_result = result
+        return last_result, sqis
+
+    # --- Legacy path ---
     try:
         with open(rule_dict_filename, "r") as f:
             rule_dict = json.load(f)
@@ -69,6 +107,7 @@ def classify_segments(
     # rule_dict[rule_name]["name"] is the actual SQI column name in the DataFrame.
     selected_sqi = [rule_dict[rule_name]["name"] for rule_name in ruleset_order.values()]
 
+    ruleset = None
     for i, sqi_df in enumerate(sqis):
         # Build per-channel rule list; in auto_mode thresholds are derived from
         # this channel's own distribution (not blindly from channel 0).
@@ -79,11 +118,8 @@ def classify_segments(
             sqi_name = channel_rule_dict[rule_name]["name"]
 
             if auto_mode:
-                valid_values = (
-                    sqi_df[sqi_name]
-                    .replace([np.inf, -np.inf, np.nan], np.nan)
-                    .dropna()
-                )
+                clean = sanitize_sqi(sqi_df[sqi_name].values)
+                valid_values = clean[np.isfinite(clean)]
                 if len(valid_values) == 0:
                     warnings.warn(
                         f"No valid values for '{sqi_name}' in channel {i}; "

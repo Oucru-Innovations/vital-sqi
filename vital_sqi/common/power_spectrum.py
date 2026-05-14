@@ -160,12 +160,20 @@ def calculate_psd(
             psd = signal.lombscargle(ts_rr, bpm_centered, angular_freq, normalize=True)
 
         elif method == "ar":
-            freq, psd_raw = signal.periodogram(
-                bpm_list, fs=hr_sampling_frequency, window="boxcar", scaling=power_type
-            )
-            model = AutoReg(psd_raw, max_lag)
+            # Fit AR model to the time-domain BPM series, then derive the
+            # theoretical PSD from the AR coefficients using the periodogram
+            # of the model's residuals as a baseline scaling.
+            bpm_centered = bpm_list - np.mean(bpm_list)
+            model = AutoReg(bpm_centered, max_lag)
             res = model.fit()
-            psd = model.predict(res.params)
+            freq = np.fft.rfftfreq(len(bpm_centered), d=1.0 / hr_sampling_frequency)
+            ar_params = res.params[1:]  # drop intercept
+            h = np.fft.rfft(
+                np.concatenate([[1], -ar_params]),
+                n=len(bpm_centered),
+            )
+            sigma2 = float(np.var(res.resid))
+            psd = sigma2 / (np.abs(h) ** 2 + 1e-30)
 
         else:
             raise ValueError("Invalid method. Choose from 'welch', 'lomb', or 'ar'.")

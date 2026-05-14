@@ -160,7 +160,7 @@ def split_segment(
         else:
             _, chunk_indices = detector.ecg_detector(np.array(sig), get_session=True)
     # Handle case when chunk_indices is empty
-    if not chunk_indices:
+    if chunk_indices is None or len(chunk_indices) == 0:
         warnings.warn("No segments could be created; returning empty lists.")
         return [], pd.DataFrame(columns=["start", "end"])
 

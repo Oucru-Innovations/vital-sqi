@@ -20,12 +20,15 @@ class TestDtwSqi:
                 dtw_sqi(self.valid_signal, template_type)
 
     def test_on_valid_template_types(self):
-        """Test valid template types with both modes."""
+        """Test valid template types with both modes produce finite non-negative distances."""
         for template_type in self.template_types:
             result_dtw = dtw_sqi(self.valid_signal, template_type, simple_mode=False)
             result_simple = dtw_sqi(self.valid_signal, template_type, simple_mode=True)
             assert isinstance(result_dtw, float)
             assert isinstance(result_simple, float)
+            assert np.isfinite(result_dtw), f"DTW not finite for template_type {template_type}"
+            assert result_dtw >= 0, f"DTW negative for template_type {template_type}"
+            assert result_simple >= 0, f"Simple distance negative for template_type {template_type}"
 
     def test_on_empty_signal(self):
         """Test behavior with an empty signal."""
@@ -81,7 +84,7 @@ class TestDtwSqi:
         # Using template_type=0 for simplicity
         result = dtw_sqi([1, 1, 1, 1], 0, simple_mode=False)
         assert isinstance(result, float)
-        # assert result == pytest.approx(0.0, rel=1e-2)
+        assert result >= 0
 
     def test_on_signal_with_noise(self):
         """Test behavior with noisy signals."""

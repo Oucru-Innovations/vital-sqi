@@ -68,7 +68,7 @@ def get_nn(
         rr_intervals = transformer.process_rr_intervals(
             impute_invalid=False, remove_invalid=remove_ectopic_beat
         )
-        nn_intervals_non_na = np.where(np.isnan(rr_intervals), -1, rr_intervals)
+        nn_intervals_non_na = rr_intervals[~np.isnan(rr_intervals)]
         return nn_intervals_non_na
     except Exception as e:
         logging.error(f"Error in get_nn function: {e}")
@@ -158,7 +158,7 @@ def calculate_sampling_rate(timestamps):
             logging.error("No positive time differences found.")
             return None
 
-        min_step = np.min(time_diffs)
+        min_step = np.median(time_diffs)
         sampling_rate = round(1 / min_step, 3)
         return sampling_rate
     except Exception as e:
@@ -685,7 +685,30 @@ def check_signal_format(s):
     return s
 
 
-def create_rule_def(sqi_name, upper_bound=0, lower_bound=1):
+def sanitize_sqi(values):
+    """
+    Replace inf/-inf with NaN, then fill NaN with the column median.
+
+    Parameters
+    ----------
+    values : array-like
+        SQI values that may contain inf, -inf, or NaN.
+
+    Returns
+    -------
+    np.ndarray
+        Cleaned float array of the same length with no inf or NaN values.
+    """
+    v = np.array(values, dtype=float)
+    v[~np.isfinite(v)] = np.nan
+    if np.all(np.isnan(v)):
+        return np.zeros(len(v))
+    med = np.nanmedian(v)
+    v[np.isnan(v)] = med
+    return v
+
+
+def create_rule_def(sqi_name, lower_bound=0, upper_bound=1):
     """
     Creates a default rule definition for SQI.
 
@@ -693,10 +716,10 @@ def create_rule_def(sqi_name, upper_bound=0, lower_bound=1):
     ----------
     sqi_name : str
         Name of the SQI.
-    upper_bound : float, optional
-        Upper bound for acceptance (default is 0).
     lower_bound : float, optional
-        Lower bound for acceptance (default is 1).
+        Lower bound for acceptance (default is 0).
+    upper_bound : float, optional
+        Upper bound for acceptance (default is 1).
 
     Returns
     -------
