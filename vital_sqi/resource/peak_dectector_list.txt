@@ -1,17 +1,40 @@
-For PPG:
-ADAPTIVE_THRESHOLD = 1
-COUNT_ORIG_METHOD = 2
-CLUSTERER_METHOD = 3
-SLOPE_SUM_METHOD = 4
-MOVING_AVERAGE_METHOD = 5
-DEFAULT = 6
-BILLAUER_METHOD = 7
+# Peak Detector Constants — vital_sqi
+# Imported from: vital_sqi.common.rpeak_detection
+# Last updated: 2026-05-14
 
-For ECG:
-HAMILTON = 1
-CHRISTOV = 2
-ENGZEE = 3
-SWT = 4
-MVA = 5
-MTEMP = 6
-PAN_TOMPKINS = 7
+# =============================================================================
+# PPG Detectors  (PeakDetector.ppg_detector)
+# =============================================================================
+#
+# Constant              Value  Status      Description
+# ──────────────────────────────────────────────────────────────────────────────
+ADAPTIVE_THRESHOLD    = 1    # Stable    Threshold adapts to local signal amplitude
+COUNT_ORIG_METHOD     = 2    # Stable    Local maxima above a running quantile
+CLUSTERER_METHOD      = 3    # Stable    KMeans(k=2) on signal values
+SLOPE_SUM_METHOD      = 4    # Stable    Zong 2003 slope-sum with onset back-search
+MOVING_AVERAGE_METHOD = 5    # Stable    Elgendi two-moving-average (MA_peak > MA_beat)
+DEFAULT               = 6    # Stable★  vitalDSP WaveformMorphology systolic peaks (recommended)
+BILLAUER_METHOD       = 7    # Stable    Billauer delta-based peak/trough tracker
+AMPD_METHOD           = 8    # Stable    Automatic Multiscale Peak Detection (Scholkmann 2012)
+LOCAL_MAX_IBI         = 9    # Stable    Local-max with IBI gating (300–2000 ms)
+
+# =============================================================================
+# ECG Detectors  (PeakDetector.ecg_detector)
+# =============================================================================
+#
+# All ECG algorithms detect R-peaks; Q/S/P/T morphology is always extracted
+# via vitalDSP WaveformMorphology, anchored to the chosen R-peak indices.
+#
+# Constant          Value  Status      Description
+# ──────────────────────────────────────────────────────────────────────────────
+ECG_DEFAULT       = 10   # Stable★  vitalDSP WaveformMorphology (R + Q/S/P/T, recommended)
+PAN_TOMPKINS      = 11   # Stable    Pan & Tompkins 1985 — bandpass 5-15 Hz, MWI, adaptive threshold
+HAMILTON          = 12   # Stable    Hamilton 2002 — simplified single-pass, bandpass 8-16 Hz
+ENGZEE            = 13   # Stable    Engzee-Zeelenberg 1979 — dynamic threshold on HP derivative
+
+# =============================================================================
+# Removed / deferred algorithms (not implemented)
+# =============================================================================
+# CHRISTOV (Christov 2004) — deferred, not in scope for current release
+# SWT (Stationary Wavelet Transform) — deferred
+# MVA / MTEMP — removed from design

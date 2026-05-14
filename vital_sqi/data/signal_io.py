@@ -82,7 +82,7 @@ def ECG_reader(
             signals, signal_headers, header = highlevel.read_edf(
                 edf_file=file_name, ch_nrs=channel_num, ch_names=channel_name
             )
-            sampling_rate = sampling_rate or signal_headers[0].get("sample_rate")
+            sampling_rate = sampling_rate or signal_headers[0].get("sample_frequency") or signal_headers[0].get("sample_rate")
             if sampling_rate is None:
                 raise ValueError("Sampling rate could not be inferred.")
             start_datetime = start_datetime or header.get("startdate")

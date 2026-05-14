@@ -72,12 +72,18 @@ Acronym                       Domain                                          St
 ``baseline_wander``           Signal Processing                              Stable
 ``spectral_snr``              Signal Processing                              Stable
 ``band_energy``               Signal Processing                              Stable
+``lfe``                       Signal Processing                              Stable
+``qrse``                      Signal Processing                              Stable
+``hfe``                       Signal Processing                              Stable
+``vhfp``                      Signal Processing                              Stable
+``qrsa``                      Signal Processing                              Stable
 ``DTW``                       Dynamic Time Warping                           Stable
 ``correlogram``               R-peak / HRV                                   Stable
 ``ectopic``                   R-peak / HRV                                   Stable
 ``msq``                       R-peak / HRV                                   Stable
 ``amplitude_consistency``     R-peak / HRV                                   Stable
-``interpolation``             R-peak / HRV                                   Placeholder
+``rr_irregularity``           HRV (time domain)                              Stable
+``interpolation``             R-peak / HRV                                   Stub (returns NaN)
 ``sdnn``                      HRV (time domain)                              Stable
 ``rmssd``                     HRV (time domain)                              Stable
 ``sdsd``                      HRV (time domain)                              Stable
@@ -168,6 +174,15 @@ Detailed SQI Descriptions
    - Coefficient of variation of beat-to-beat peak amplitudes. Low CV = stable beats.
    - See: :py:func:`vital_sqi.sqi.rpeaks_sqi.amplitude_consistency_sqi`
 
+- **Band Energy SQIs (`lfe`, `qrse`, `hfe`, `vhfp`, `qrsa`)**:
+   - Frequency-band energy metrics derived from the short-time Fourier transform.
+   - ``lfe``: low-frequency (0–0.5 Hz) STFT energy — indicates baseline wander.
+   - ``qrse``: QRS-band (5–25 Hz) STFT energy — captures ventricular activation.
+   - ``hfe``: high-frequency (>100 Hz) STFT energy — sensitive to electrode noise.
+   - ``vhfp``: very-high-frequency (>150 Hz) normalised power fraction.
+   - ``qrsa``: median QRS amplitude via vitalDSP WaveformMorphology.
+   - See: :py:mod:`vital_sqi.sqi.waveform_sqi`
+
 - **RR Irregularity (`rr_irregularity`)**:
    - Mean absolute deviation of successive RR differences normalised by median RR.
    - More sensitive than SDNN for detecting ectopic beats and AF.
@@ -186,6 +201,32 @@ Detailed SQI Descriptions
 - **Hurst (`hurst`)**:
    - Hurst exponent via R/S analysis. H > 0.5 = persistent structured signal.
    - See: :py:func:`vital_sqi.sqi.hrv_sqi.hurst_sqi`
+
+---
+
+Peak Detection
+--------------
+
+**vital_sqi** bundles its own ``PeakDetector`` class
+(``vital_sqi.common.rpeak_detection``) so that peak-based SQIs work without
+any additional dependencies beyond **vitalDSP**.
+
+**PPG algorithms** (9 methods): ``DEFAULT`` (vitalDSP WaveformMorphology),
+``ADAPTIVE_THRESHOLD``, ``COUNT_ORIG_METHOD``, ``CLUSTERER_METHOD``,
+``SLOPE_SUM_METHOD``, ``MOVING_AVERAGE_METHOD``, ``BILLAUER_METHOD``,
+``AMPD_METHOD`` (Scholkmann 2012), and ``LOCAL_MAX_IBI``.
+
+**ECG algorithms** (4 methods): ``ECG_DEFAULT`` (vitalDSP WaveformMorphology),
+``PAN_TOMPKINS`` (1985), ``HAMILTON`` (2002), ``ENGZEE`` (1979).
+All ECG algorithms use vitalDSP for Q/S/P/T morphology extraction, anchored to
+the R-peaks found by the selected algorithm.
+
+.. note::
+   ``msq_sqi`` currently returns ``NaN`` and emits a ``RuntimeWarning`` for
+   ECG signals.  A meaningful ECG MSQ requires two independently calibrated
+   R-peak detectors (e.g. Pan-Tompkins vs Hamilton) producing comparable
+   indices.  A future release will wire the ECG detector-switching API into
+   ``msq_sqi`` to enable true ECG peak-agreement scoring.
 
 ---
 

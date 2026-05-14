@@ -104,12 +104,15 @@ def entropy_sqi(x, qk=None, base=None, axis=0):
     float or ndarray
         Entropy value(s) of the signal.
     """
-    x = np.array(x)
-    x_shifted = x - np.min(x)  # Shift x to non-negative
-    if np.sum(x_shifted) == 0:
+    x = np.array(x, dtype=float).ravel()
+    if len(x) == 0:
+        raise ValueError("Input signal is empty; cannot compute entropy.")
+    counts, _ = np.histogram(x, bins="auto")
+    counts = counts[counts > 0]
+    if counts.sum() == 0:
         return 0.0
-    prob_dist = x_shifted / np.sum(x_shifted)  # Normalize to probability distribution
-    return entropy(prob_dist, qk=qk, base=base, axis=axis)
+    prob_dist = counts / counts.sum()
+    return entropy(prob_dist, qk=None, base=base)
 
 
 def signal_to_noise_sqi(a, axis=0, ddof=0):

@@ -104,13 +104,6 @@ class Rule:
         if any(label not in ["accept", "reject", None] for label in label_list):
             raise ValueError("Labels must be 'accept', 'reject', or None.")
 
-        for label in label_list:
-            assert (
-                isinstance(label, str) or label is None
-            ), "Label must be 'accept' or 'reject' string"
-            if label != "reject" and label != "accept":
-                label = None
-
         threshold_list = []
         for idx in range(len(label_list)):
             threshold = {
@@ -144,7 +137,7 @@ class Rule:
             raise ValueError("Invalid output file path.")
 
         if overwrite and not os.path.isfile(file_path):
-            overwrite = False  # no existing file to merge into; fall through to create
+            raise FileNotFoundError("File to overwrite does not exist.")
 
         # if overwrite:
         #     with open(file_path) as file_in:

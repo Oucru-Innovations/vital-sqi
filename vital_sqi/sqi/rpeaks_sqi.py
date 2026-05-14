@@ -96,7 +96,6 @@ def ectopic_sqi(
         number_outliers = np.isnan(rr_intervals_cleaned).sum()
         total_rr_intervals = len(rr_intervals_cleaned)
         outlier_ratio = number_outliers / max(total_rr_intervals, 1)
-        outlier_ratio = number_outliers / max(total_rr_intervals, 1)
 
         if rule_index == 0:
             return outlier_ratio
@@ -110,7 +109,6 @@ def ectopic_sqi(
             interpolated_rr_intervals, method=selected_rule
         )
         number_ectopics = np.isnan(nn_intervals).sum()
-        ectopic_ratio = number_ectopics / max(len(nn_intervals), 1)
         ectopic_ratio = number_ectopics / max(len(nn_intervals), 1)
 
         return ectopic_ratio
@@ -313,6 +311,17 @@ def msq_sqi(s, peak_detector_1=7, peak_detector_2=6, wave_type="PPG"):
     """
     if not isinstance(s, (np.ndarray, list)) or len(s) == 0:
         warnings.warn("Input signal is empty or invalid.")
+        return np.nan
+
+    if wave_type == "ECG":
+        warnings.warn(
+            "msq_sqi for ECG currently uses two PPG-style detectors as a proxy. "
+            "For a meaningful ECG MSQ, two distinct detectors (e.g. Pan-Tompkins "
+            "and Hamilton) are needed. Returning NaN until Phase-2 ECG detectors "
+            "are available.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
         return np.nan
 
     try:

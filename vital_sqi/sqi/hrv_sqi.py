@@ -101,7 +101,6 @@ def sdsd_sqi(nn_intervals):
             warnings.warn("Insufficient NN intervals for SDSD calculation.")
             return np.nan
         return np.std(np.diff(nn_intervals), ddof=1)
-        return np.std(np.diff(nn_intervals), ddof=1)
     except Exception as e:
         warnings.warn(f"Error in sdsd_sqi: {e}")
         return np.nan
@@ -376,7 +375,7 @@ def frequency_sqi(nn_intervals, freq_min=0.04, freq_max=0.15, metric="peak"):
         * ``'peak'`` — frequency of the spectral peak in the band.
         * ``'absolute'`` — sum of power in the band.
         * ``'log'`` — sum of log power in the band.
-        * ``'normalized'`` — L2 norm of power in the band.
+        * ``'normalized'`` — band power / (total power − VLF power), per HRV Task Force.
         * ``'relative'`` — band power / total power.
 
         Default is ``'peak'``.
@@ -422,7 +421,11 @@ def frequency_sqi(nn_intervals, freq_min=0.04, freq_max=0.15, metric="peak"):
     elif metric == "log":
         return np.sum(np.log(band_powers + 1e-10))
     elif metric == "normalized":
-        return np.linalg.norm(band_powers + 1e-10)
+        # Normalized power: band_power / (total_power − VLF_power).
+        # VLF is defined as 0–0.04 Hz per HRV Task Force guidelines.
+        vlf_power = np.sum(powers[freqs < 0.04])
+        denom = np.sum(powers) - vlf_power
+        return np.sum(band_powers) / denom if denom > 0 else np.nan
     elif metric == "relative":
         total_power = np.sum(powers)
         return np.sum(band_powers) / total_power if total_power > 0 else np.nan

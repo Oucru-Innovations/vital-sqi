@@ -5,7 +5,7 @@ import pandas as pd
 import json
 from tqdm import tqdm
 from scipy.signal import resample
-from vital_sqi.common.rpeak_detection import PeakDetector
+from vital_sqi.common.rpeak_detection import PeakDetector, ECG_DEFAULT
 import vital_sqi.sqi as sq
 from vital_sqi.rule import RuleSet, Rule, update_rule
 from vital_sqi.common.utils import get_nn, create_rule_def, sanitize_sqi
@@ -14,6 +14,7 @@ from vital_sqi.preprocess.preprocess_signal import taper_signal
 import warnings
 import logging
 import inspect
+from joblib import Parallel, delayed
 from vital_sqi.sqi import sqi_mapping
 
 # Cache getfullargspec results per function — introspection is static and
@@ -100,7 +101,29 @@ def classify_segments(
     ... )
     >>> decisions = [df["decision"].iloc[0] for df in sqis]
     """
-    # Load rule dictionary
+    if mode not in ("legacy", "robust"):
+        raise ValueError(f"mode must be 'legacy' or 'robust', got {mode!r}")
+
+    # ── Robust mode: skip rule-dict entirely ────────────────────────────────
+    if mode == "robust":
+        sqi_names = list(sqis[0].columns) if sqis else []
+        combined = pd.concat(sqis, ignore_index=True) if sqis else pd.DataFrame()
+        robust_result = classify_segments_robust(
+            combined, sqi_names=sqi_names, config=robust_config
+        )
+        decisions = robust_result.decisions
+        scores = robust_result.scores
+        idx = 0
+        for i, sqi_df in enumerate(sqis):
+            n = len(sqi_df)
+            sqi_df = sqi_df.copy()
+            sqi_df["decision"] = decisions[idx: idx + n]
+            sqi_df["score"] = scores[idx: idx + n]
+            sqis[i] = sqi_df
+            idx += n
+        return robust_result, sqis
+
+    # ── Legacy mode ─────────────────────────────────────────────────────────
     try:
         with open(rule_dict_filename, "r") as f:
             rule_dict = json.load(f)
@@ -116,10 +139,6 @@ def classify_segments(
                 f"Rule '{rule_name}' not found in rule_dict. "
                 f"Available rules: {list(rule_dict.keys())}"
             )
-
-    # Build the list of SQI column names (not rule names) for DataFrame indexing.
-    # rule_dict[rule_name]["name"] is the actual SQI column name in the DataFrame.
-    selected_sqi = [rule_dict[rule_name]["name"] for rule_name in ruleset_order.values()]
 
     ruleset = None
     for i, sqi_df in enumerate(sqis):
@@ -152,10 +171,9 @@ def classify_segments(
             rule = generate_rule(sqi_name, channel_rule_dict[rule_name]["def"])
             rule_list[rule_order] = rule
 
-    ruleset = RuleSet(rule_list)
-    selected_sqi = list(ruleset_order.values())
-
-    for i, sqi_df in enumerate(sqis):
+        ruleset = RuleSet(rule_list)
+        # selected_sqi: the SQI column names that rules actually reference
+        selected_sqi = [channel_rule_dict[rn]["name"] for rn in ruleset_order.values()]
         subset = sqi_df[selected_sqi]
         decisions = [
             ruleset.execute(subset.iloc[[idx]])
@@ -341,15 +359,7 @@ def get_sqi_dict(sqis, sqi_name):
 
     if isinstance(sqis, np.ndarray):
         sqis = sqis.tolist()
-    if isinstance(sqis, (float, int, np.floating, np.integer)):
-        return {sqi_name: sqis}
 
-    if isinstance(sqis, np.ndarray):
-        sqis = sqis.tolist()
-
-    if isinstance(sqis, list):
-        if len(sqis) == 1:
-            return {sqi_name: sqis[0]}
     if isinstance(sqis, list):
         if len(sqis) == 1:
             return {sqi_name: sqis[0]}
@@ -358,8 +368,6 @@ def get_sqi_dict(sqis, sqi_name):
             f"{sqi_name}_median_sqi": np.median(sqis),
             f"{sqi_name}_std_sqi": np.std(sqis),
         }
-
-    return {sqi_name: sqis}
 
     return {sqi_name: sqis}
 
@@ -374,6 +382,9 @@ def get_sqi(
     wave_type="PPG",
     peak_detector=6,
     _nn_intervals=None,
+    _signal_values=None,
+    _peak_list=None,
+    _trough_list=None,
     **kwargs,
 ):
     """
@@ -422,11 +433,12 @@ def get_sqi(
         Mapping of column name(s) to scalar SQI value(s), as produced by
         :func:`get_sqi_dict`.
     """
-    # Extract signal values as array-like
-    if isinstance(s, pd.DataFrame):
+    # Use pre-hoisted signal array when available (injected by extract_segment_sqi)
+    if _signal_values is not None:
+        signal_values = _signal_values
+    elif isinstance(s, pd.DataFrame):
         signal_values = s.iloc[:, 1].values
     elif isinstance(s, pd.Series):
-        signal_values = s.values
         signal_values = s.values
     else:
         signal_values = np.asarray(s)
@@ -449,7 +461,8 @@ def get_sqi(
                     signal_values, peak_detector
                 )
             else:
-                result = detector.ecg_detector(signal_values, peak_detector)
+                ecg_det = peak_detector if peak_detector >= ECG_DEFAULT else ECG_DEFAULT
+                result = detector.ecg_detector(signal_values, ecg_det)
                 _peak_list, trough_list = result[0], result[2]  # r_peaks, s_valleys
         sqi_scores = per_beat_sqi(
             sqi_func,
@@ -507,6 +520,9 @@ def extract_segment_sqi(s, sqi_list, sqi_names, sqi_arg_list, wave_type):
 
     # Compute nn_intervals once and reuse across all nn_intervals-based SQIs
     _nn_cache = None
+    # Peak lists computed lazily on first per_beat SQI; reused for subsequent ones
+    peak_list = None
+    trough_list = None
 
     for sqi_func, sqi_name in zip(sqi_list, sqi_names):
         args = sqi_arg_list.get(sqi_name, {}).copy()
@@ -514,6 +530,13 @@ def extract_segment_sqi(s, sqi_list, sqi_names, sqi_arg_list, wave_type):
         # Pass pre-hoisted array and cached peaks into get_sqi
         args["_signal_values"] = signal_values
         if args.get("per_beat", False):
+            if peak_list is None:
+                detector = PeakDetector()
+                if wave_type == "PPG":
+                    peak_list, trough_list = detector.ppg_detector(signal_values, args.get("peak_detector", 6))
+                else:
+                    result = detector.ecg_detector(signal_values, args.get("peak_detector", ECG_DEFAULT))
+                    peak_list, trough_list = result[0], result[2]
             args["_peak_list"] = peak_list
             args["_trough_list"] = trough_list
 

@@ -46,7 +46,9 @@ class PeakDetector:
     --------
     >>> detector = PeakDetector(wave_type="PPG", fs=100)
     >>> signal = np.random.randn(1000)
+    >>> peaks, troughs = detector.ppg_detector(signal)  # DEFAULT (vitalDSP)
     >>> peaks, troughs = detector.ppg_detector(signal, detector_type=ADAPTIVE_THRESHOLD)
+    >>> r, q, s, p, t = PeakDetector(wave_type="ECG", fs=256).ecg_detector(signal)
     """
 
     def __init__(self, wave_type="PPG", fs=100):
@@ -70,8 +72,20 @@ class PeakDetector:
         s : array_like
             Input ECG signal.
         detector_type : int, optional
-            R-peak detection algorithm. One of ECG_DEFAULT, PAN_TOMPKINS,
-            HAMILTON, ENGZEE. Default is ECG_DEFAULT.
+            R-peak detection algorithm.  Available constants:
+
+            * ``ECG_DEFAULT`` (10) — vitalDSP WaveformMorphology (recommended; also
+              provides Q/S/P/T morphology points)
+            * ``PAN_TOMPKINS`` (11) — classic Pan-Tompkins 1985 with adaptive
+              dual-threshold; bandpass 5–15 Hz
+            * ``HAMILTON`` (12) — Hamilton-Tompkins simplified 2002; single-pass
+              derivative-square-integrate; bandpass 8–16 Hz
+            * ``ENGZEE`` (13) — Engzee-Zeelenberg 1979; dynamic threshold on
+              high-pass filtered derivative
+
+            All alternatives use vitalDSP WaveformMorphology for Q/S/P/T
+            extraction, anchored to the chosen R-peak indices.
+            Default is ``ECG_DEFAULT``.
         get_session : bool, optional
             If True return (r_peaks, ecg_session) instead of the full tuple.
 
@@ -141,7 +155,19 @@ class PeakDetector:
         s : array_like
             Input PPG signal.
         detector_type : int, optional
-            Method for peak detection (default is ADAPTIVE_THRESHOLD).
+            Method for peak detection (default is ``DEFAULT`` = 6, which
+            uses vitalDSP WaveformMorphology systolic-peak detection).
+            Available constants:
+
+            * ``ADAPTIVE_THRESHOLD`` (1) — threshold adapts to local signal amplitude
+            * ``COUNT_ORIG_METHOD`` (2) — count-based local maxima
+            * ``CLUSTERER_METHOD`` (3) — KMeans clustering
+            * ``SLOPE_SUM_METHOD`` (4) — Zong 2003 slope-sum onset
+            * ``MOVING_AVERAGE_METHOD`` (5) — Elgendi two-moving-average
+            * ``DEFAULT`` (6) — vitalDSP WaveformMorphology (recommended)
+            * ``BILLAUER_METHOD`` (7) — Billauer peak/trough tracker
+            * ``AMPD_METHOD`` (8) — Automatic Multiscale Peak Detection
+            * ``LOCAL_MAX_IBI`` (9) — local-max with IBI tracking
         preprocess : bool, optional
             Whether to apply filtering to the signal (default is False).
         cubing : bool, optional

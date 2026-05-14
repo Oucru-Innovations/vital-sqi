@@ -152,12 +152,16 @@ Handles two execution modes:
     is packaged by :func:`get_sqi_dict`.
 
 **Per-beat mode** (``per_beat=True``)
-    Peak detection runs inside :func:`get_sqi` to find trough indices,
-    then :func:`per_beat_sqi` slices the signal into individual beats and
-    calls the SQI function on each.  If ``use_mean_beat=True`` (default),
-    all beats are resampled to ``mean_resample_size`` samples, averaged,
-    and the SQI is computed once on the mean beat (replicated to one
-    value per beat interval).
+    :func:`extract_segment_sqi` runs peak detection **once** per segment
+    on the first per-beat SQI encountered and caches the resulting
+    ``peak_list`` / ``trough_list``.  All subsequent per-beat SQIs in the
+    same segment reuse the cached peaks without re-running the detector.
+    :func:`get_sqi` accepts the cached peaks via the ``_peak_list`` /
+    ``_trough_list`` private keyword arguments; :func:`per_beat_sqi` then
+    slices the signal into individual beats and calls the SQI function on
+    each.  If ``use_mean_beat=True`` (default), all beats are resampled to
+    ``mean_resample_size`` samples, averaged, and the SQI is computed once
+    on the mean beat (one value per segment).
 
 ``wave_type`` is forwarded to every SQI function whose signature includes
 a ``wave_type`` parameter.  ``sampling_rate`` / ``sample_rate`` arguments
@@ -317,7 +321,7 @@ through the cached NN-interval path.  All others receive the raw signal.
      - LF band power / total power
    * - ``normalized_power_sqi``
      - nn_intervals
-     - L2 norm of LF band power vector
+     - LF band power / (total power − VLF power), per HRV Task Force 1996
    * - ``lf_hf_ratio_sqi``
      - nn_intervals
      - LF/HF power ratio (sympatho-vagal balance)
@@ -462,7 +466,125 @@ flags.
 
 ---
 
-Part 4 — Calibration System
+Part 4 — Peak Detection Algorithms
+------------------------------------
+
+Overview
+~~~~~~~~
+
+Peak detection is used by:
+
+- All ``per_beat=True`` SQIs (DTW, skewness, kurtosis on individual beats).
+- HRV SQIs — ``get_nn()`` calls the PPG/ECG detector to derive RR intervals.
+- ``ectopic_sqi``, ``correlogram_sqi``, ``msq_sqi``, ``amplitude_consistency_sqi``.
+
+The :class:`~vital_sqi.common.rpeak_detection.PeakDetector` class exposes two
+independent method families: ``ppg_detector`` (9 algorithms) and
+``ecg_detector`` (4 algorithms).
+
+PPG Detectors
+~~~~~~~~~~~~~
+
+Select via the ``peak_detector`` argument in ``sqi_dict.json`` or via the
+``detector_type`` constant imported from
+``vital_sqi.common.rpeak_detection``.
+
+.. list-table:: PPG detection algorithms
+   :header-rows: 1
+   :widths: 10 25 65
+
+   * - Constant
+     - Value
+     - Description
+   * - ``DEFAULT``
+     - 6
+     - vitalDSP ``WaveformMorphology.systolic_peaks`` — height + distance
+       threshold on the band-passed signal.  **Recommended default.**
+   * - ``ADAPTIVE_THRESHOLD``
+     - 1
+     - Threshold adapts to the local signal amplitude (running max).
+       Suitable for recordings with slow baseline drift.
+   * - ``COUNT_ORIG_METHOD``
+     - 2
+     - Local maxima above a ``0.75``-quantile × 0.2 threshold.
+       Fast but sensitive to non-zero DC baselines.
+   * - ``CLUSTERER_METHOD``
+     - 3
+     - KMeans (k=2) separates peaks from non-peaks.
+       Non-deterministic; set ``random_state`` for reproducibility.
+   * - ``SLOPE_SUM_METHOD``
+     - 4
+     - Zong 2003 slope-sum energy with onset back-search.
+       Robust on noisy PPG; requires ``fs``-scaled windows.
+   * - ``MOVING_AVERAGE_METHOD``
+     - 5
+     - Elgendi two-moving-average (MA\ :sub:`peak` > MA\ :sub:`beat`).
+       Returns raw-signal peaks within each detected "block of interest".
+   * - ``BILLAUER_METHOD``
+     - 7
+     - Billauer delta-based peak/trough tracker.
+       Records ``mxpos`` (true peak sample) not the detection crossing.
+   * - ``AMPD_METHOD``
+     - 8
+     - Automatic Multiscale Peak Detection (Scholkmann 2012).
+       Parameter-free; works well on quasi-periodic PPG at 50–250 Hz.
+   * - ``LOCAL_MAX_IBI``
+     - 9
+     - Local-maxima with inter-beat-interval gating.
+       Filters candidate peaks by physiological IBI range (300–2000 ms).
+
+ECG Detectors
+~~~~~~~~~~~~~
+
+Used by ``ecg_detector(s, detector_type=ECG_DEFAULT)``.  All algorithms
+detect R-peaks; Q/S/P/T morphology extraction always uses vitalDSP
+``WaveformMorphology``, anchored to the chosen R-peak indices.
+
+.. list-table:: ECG detection algorithms
+   :header-rows: 1
+   :widths: 15 8 77
+
+   * - Constant
+     - Value
+     - Description
+   * - ``ECG_DEFAULT``
+     - 10
+     - vitalDSP ``WaveformMorphology`` derivative-square-MWI with
+       height threshold.  Provides R + Q/S/P/T in a single call.
+       **Recommended default.**
+   * - ``PAN_TOMPKINS``
+     - 11
+     - Classic Pan-Tompkins 1985.  Bandpass 5–15 Hz → derivative →
+       squaring → 150 ms MWI → adaptive dual threshold with 2 s
+       learning period.  Back-projects within ±60 ms for true R-peak.
+   * - ``HAMILTON``
+     - 12
+     - Hamilton-Tompkins simplified 2002.  Bandpass 8–16 Hz → first
+       difference → 80 ms moving average → mean+0.5σ threshold.
+       Single-pass, suitable for real-time use.
+   * - ``ENGZEE``
+     - 13
+     - Engzee-Zeelenberg 1979.  High-pass filtered derivative with a
+       dynamic threshold that adapts after each detected beat.
+
+Usage example::
+
+    from vital_sqi.common.rpeak_detection import (
+        PeakDetector, ECG_DEFAULT, PAN_TOMPKINS, HAMILTON, ENGZEE,
+        DEFAULT, AMPD_METHOD
+    )
+
+    ppg_detector = PeakDetector(wave_type="PPG", fs=100)
+    peaks, troughs = ppg_detector.ppg_detector(ppg_signal)          # DEFAULT
+    peaks, troughs = ppg_detector.ppg_detector(ppg_signal, AMPD_METHOD)
+
+    ecg_detector = PeakDetector(wave_type="ECG", fs=256)
+    r, q, s, p, t = ecg_detector.ecg_detector(ecg_signal)           # ECG_DEFAULT
+    r, q, s, p, t = ecg_detector.ecg_detector(ecg_signal, PAN_TOMPKINS)
+
+---
+
+Part 5 — Calibration System
 ----------------------------
 
 Purpose
@@ -699,7 +821,7 @@ and can be inspected with
 
 ---
 
-Part 5 — Complete End-to-End Example
+Part 6 — Complete End-to-End Example
 --------------------------------------
 
 .. code-block:: python
