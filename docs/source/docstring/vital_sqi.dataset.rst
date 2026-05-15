@@ -1,21 +1,9 @@
-vital\_sqi.dataset package
-==========================
+Bundled datasets (``vital_sqi.dataset``)
+========================================
 
-Submodules
-----------
-
-vital\_sqi.dataset.example\_data module
----------------------------------------
+Small example ECG/PPG recordings shipped with the library so the tutorials
+and quickstart run without external data.
 
 .. automodule:: vital_sqi.dataset.example_data
    :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: vital_sqi.dataset
-   :members:
-   :undoc-members:
    :show-inheritance:

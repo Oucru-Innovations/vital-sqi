@@ -1,55 +1,59 @@
-vital\_sqi.calibration
-======================
+Calibration (``vital_sqi.calibration``)
+=======================================
 
-.. automodule:: vital_sqi.calibration
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Automated derivation of SQI accept/reject thresholds. The calibration
+workflow generates clean synthetic signals, injects parameterised noise,
+computes SQIs over both pools, and writes a ``rule_dict.json`` and
+``sqi_dict.json`` that can be loaded by the pipeline.
 
-signal\_generator
------------------
+.. contents::
+   :local:
+   :depth: 1
 
-.. automodule:: vital_sqi.calibration.signal_generator
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
-noise\_injector
----------------
-
-.. automodule:: vital_sqi.calibration.noise_injector
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-sqi\_runner
------------
-
-.. automodule:: vital_sqi.calibration.sqi_runner
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-threshold\_estimator
---------------------
-
-.. automodule:: vital_sqi.calibration.threshold_estimator
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-exporter
---------
-
-.. automodule:: vital_sqi.calibration.exporter
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-run\_calibration
+Top-level runner
 ----------------
 
 .. automodule:: vital_sqi.calibration.run_calibration
    :members:
-   :undoc-members:
+   :show-inheritance:
+
+
+Synthetic signal generation
+---------------------------
+
+.. automodule:: vital_sqi.calibration.signal_generator
+   :members:
+   :show-inheritance:
+
+
+Noise injection
+---------------
+
+.. automodule:: vital_sqi.calibration.noise_injector
+   :members:
+   :show-inheritance:
+
+
+Batch SQI computation
+---------------------
+
+.. automodule:: vital_sqi.calibration.sqi_runner
+   :members:
+   :show-inheritance:
+
+
+Threshold estimator
+-------------------
+
+.. automodule:: vital_sqi.calibration.threshold_estimator
+   :members:
+   :show-inheritance:
+
+
+Exporter
+--------
+
+.. automodule:: vital_sqi.calibration.exporter
+   :members:
    :show-inheritance:

@@ -1,150 +1,181 @@
 # Configuration file for the Sphinx documentation builder.
 #
-# This file only contains a selection of the most common options. For a full
-# list see the documentation:
-# https://www.sphinx-doc.org/en/master/usage/configuration.html
+# Reference: https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-# -- Path setup --------------------------------------------------------------
-
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-#
 import os
 import sys
+
+# Make the package importable so autodoc can pick it up
 sys.path.insert(0, os.path.abspath("../../"))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../vital_sqi/')))
-# sys.path.insert(0, os.path.abspath('../../vital_sqi/'))
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../vital_sqi/"))
+)
 
-# -- Project information -----------------------------------------------------
+# ---------------------------------------------------------------------------
+# Project metadata
+# ---------------------------------------------------------------------------
 
-project = 'vital_sqi'
-copyright = '2022, Oucru'
-author = 'Oucru'
+project = "vital_sqi"
+copyright = "2026, Oucru"
+author = "Oucru"
 
-# -- General configuration ---------------------------------------------------
+# ---------------------------------------------------------------------------
+# Sphinx extensions
+# ---------------------------------------------------------------------------
 
-# Add any Sphinx extension module names here, as strings. They can be
-# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-# ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.viewcode',        # source source link next to docs
-    'sphinx.ext.githubpages',     # gh-pages needs a .nojekyll file
-    'sphinx_gallery.gen_gallery',  # galleries with examples
-    'nbsphinx'                     # notebook
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.githubpages",
+    "myst_nb",                 # executable notebooks + native Plotly support
+    "sphinxcontrib.jquery",    # ensures jQuery for any extension that expects it
 ]
 
-# Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+# ---------------------------------------------------------------------------
+# Source files
+# ---------------------------------------------------------------------------
 
-# List of patterns, relative to source directory, that match files and
-# directories to ignore when looking for source files.
-# This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['build', 'Thumbs.db', '.DS_Store']
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "myst-nb",
+    ".ipynb": "myst-nb",
+}
+templates_path = ["_templates"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
+master_doc = "index"
+rst_epilog = ".. |project_name| replace:: %s" % project
 
+# ---------------------------------------------------------------------------
+# myst-nb / MyST configuration
+# ---------------------------------------------------------------------------
 
-# -- Options for HTML output -------------------------------------------------
+# Execute notebooks at build time and embed outputs. Cached re-runs are skipped.
+# "auto" runs notebooks that don't have stored outputs OR whose source changed.
+nb_execution_mode = "auto"
+nb_execution_timeout = 300        # seconds per notebook
+nb_execution_allow_errors = False
+nb_render_plugin = "default"
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
-# a list of builtin themes. In order to work with 'sphinx_rtd_theme' need
-# to install it: $ python -m pip install sphinx-rtd-theme
-html_theme = 'sphinx_rtd_theme'
+# Don't fail RTD when a notebook can't find its sample data — render anyway.
+nb_execution_excludepatterns = []
 
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# Keep Plotly figures interactive in HTML output. require.js is provided by
+# the notebook via the default mime bundle; myst-nb renders it automatically.
+nb_mime_priority_overrides = [
+    ("html", "application/vnd.plotly.v1+json", 10),
+    ("html", "text/html", 20),
+    ("html", "image/svg+xml", 30),
+    ("html", "image/png", 40),
+]
 
-# Substitute project name into .rst files when |project_name| is used
-rst_epilog = '.. |project_name| replace:: %s' % project
+myst_enable_extensions = [
+    "colon_fence",
+    "deflist",
+    "dollarmath",
+    "amsmath",
+    "html_admonition",
+    "html_image",
+]
 
+# ---------------------------------------------------------------------------
+# autodoc / napoleon
+# ---------------------------------------------------------------------------
 
-# -- Extensions configuration ------------------------------------------------
+autodoc_default_options = {
+    "members": True,
+    "undoc-members": False,
+    "show-inheritance": True,
+    "exclude-members": "__weakref__,__dict__",
+}
+autodoc_typehints = "description"
+autosummary_generate = True
 
-# -----------------------
-# Napoleon settings
-# -----------------------
-# The following variables include all the possible settings for the napoleon
-# sphinx extension. In addition, the default value is specified in a comment
-# for those entries that have been modified.
-napoleon_google_docstring = False # Default True
+napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = False
 napoleon_include_private_with_doc = False
 napoleon_include_special_with_doc = True
-napoleon_use_admonition_for_examples = False
-napoleon_use_admonition_for_notes = False
-napoleon_use_admonition_for_references = False
-napoleon_use_ivar = False
 napoleon_use_param = True
 napoleon_use_rtype = True
-napoleon_preprocess_types = False
-napoleon_type_aliases = None
 napoleon_attr_annotations = True
 
+# Mock only dependencies that aren't installable on RTD. Do NOT mock plotly,
+# pandas, or numpy — they ship in our requirements.txt and mocking them
+# breaks notebook execution.
+autodoc_mock_imports = [
+    "dash",
+    "dash_bootstrap_components",
+    "dash_core_components",
+    "dash_html_components",
+    "pyflowchart",
+    "pmdarima",
+    "vitalDSP",
+    "soundfile",
+    "hrvanalysis",
+]
 
-# ----------------------------------------
-# Plotly outcomes
-# ----------------------------------------
-# Include plotly outputs in sphinx-gallery
-import plotly.io as pio
-pio.renderers.default = 'sphinx_gallery'
+# ---------------------------------------------------------------------------
+# Intersphinx
+# ---------------------------------------------------------------------------
 
-
-# -----------------------
-# Sphinx-gallery settings
-# -----------------------
-# Information about the sphinx gallery configuration
-# https://sphinx-gallery.github.io/stable/configuration.html
-
-# Import library
-from sphinx_gallery.sorting import FileNameSortKey
-
-# html_extra_path = ["extra"]
-
-# Configuration for sphinx_gallery
-BASE_DIR = '../source/_examples'
-sphinx_gallery_conf = {
-    # path to your example scripts
-    'examples_dirs': [
-        # '../../examples/tutorials',
-        # '../../examples/preprocess',
-        # '../../examples/sqi',
-        '../../examples/notebooks'
-    ],
-    # path to save gallery generated output
-    'gallery_dirs': [
-        # os.path.join(BASE_DIR, 'tutorials'),
-        # os.path.join(BASE_DIR, 'preprocess'),
-        # os.path.join(BASE_DIR, 'sqi'),
-        os.path.join(BASE_DIR, 'notebooks')
-    ],
-    'filename_pattern': r'\.py$',        # Match Python files
-    # Other
-    'pypandoc': True,
-    'line_numbers': True,
-    'download_all_examples': False,
-    'within_subsection_order': FileNameSortKey
+intersphinx_mapping = {
+    "python":     ("https://docs.python.org/3/", None),
+    "numpy":      ("https://numpy.org/doc/stable/", None),
+    "scipy":      ("https://docs.scipy.org/doc/scipy/", None),
+    "pandas":     ("https://pandas.pydata.org/docs/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
 }
-autodoc_mock_imports = ["dash_bootstrap_components"]
 
-# autodoc_mock_imports = ["librosa"]
-from unittest.mock import MagicMock
+# ---------------------------------------------------------------------------
+# HTML output
+# ---------------------------------------------------------------------------
 
-sys.path.append(os.path.abspath('..'))
+html_theme = "sphinx_rtd_theme"
+html_static_path = ["_static"]
+html_css_files = ["custom.css"]
+html_baseurl = "https://vital-sqi.readthedocs.io/"
 
-# Mock module to bypass pip install
-class Mock(MagicMock):
-    @classmethod
-    def __getattr__(cls, name):
-        return MagicMock()
+html_theme_options = {
+    "logo_only": False,
+    "prev_next_buttons_location": "bottom",
+    "style_external_links": True,
+    # Collapse sub-trees by default; user expands by clicking.
+    "collapse_navigation": True,
+    "sticky_navigation": True,
+    # Depth 4 is enough for "Package > Module > Class > Method" without
+    # producing a wall-of-text sidebar.
+    "navigation_depth": 4,
+    "includehidden": True,
+    # Only show page-title entries (not every heading inside every page) so
+    # the sidebar stays scannable.
+    "titles_only": True,
+    "style_nav_header_background": "#2980B9",
+}
 
-MOCK_MODULES = [
-    # 'librosa', 'librosa.display', 
-    'plotly',
-    # 'setuptools', 
-    'jupyter', 
-    'pandas']
-sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+html_sidebars = {
+    "**": [
+        "globaltoc.html",
+        "relations.html",
+        "sourcelink.html",
+        "searchbox.html",
+    ]
+}
+
+# ---------------------------------------------------------------------------
+# Warning suppression
+# ---------------------------------------------------------------------------
+
+suppress_warnings = [
+    "myst_nb",
+    "myst.header",
+    "autosummary",
+    "ref.duplicate_label",
+    # Dataclass fields show up twice (class body + member list) — harmless.
+    "ref.python",
+    "autodoc.duplicate_object_description",
+    "app.add_directive",
+]

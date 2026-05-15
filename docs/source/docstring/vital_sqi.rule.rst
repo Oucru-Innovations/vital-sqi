@@ -1,37 +1,35 @@
-vital\_sqi.rule package
-=======================
+Rule engine (``vital_sqi.rule``)
+================================
 
-Submodules
-----------
+The rule engine wraps SQI threshold definitions into composable
+``Rule`` and ``RuleSet`` objects, plus a robust auto-classifier that
+detects three regimes (clean / bimodal / heavy-noise) without needing
+hand-picked thresholds.
 
-vital\_sqi.rule.rule\_class module
-----------------------------------
+.. contents::
+   :local:
+   :depth: 1
+
+
+Single-SQI rule
+---------------
 
 .. automodule:: vital_sqi.rule.rule_class
    :members:
-   :undoc-members:
    :show-inheritance:
 
-vital\_sqi.rule.ruleset\_class module
--------------------------------------
+
+Composite rule set
+------------------
 
 .. automodule:: vital_sqi.rule.ruleset_class
    :members:
-   :undoc-members:
    :show-inheritance:
 
-vital\_sqi.rule.robust\_classifier module
------------------------------------------
+
+Robust auto-classifier
+----------------------
 
 .. automodule:: vital_sqi.rule.robust_classifier
    :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: vital_sqi.rule
-   :members:
-   :undoc-members:
    :show-inheritance:

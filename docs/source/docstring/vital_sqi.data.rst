@@ -1,29 +1,25 @@
-vital\_sqi.data package
-=======================
+Data I/O (``vital_sqi.data``)
+=============================
 
-Submodules
+Reading ECG/PPG recordings from disk and the in-memory ``SignalSQI``
+container that pipelines write to.
+
+.. contents::
+   :local:
+   :depth: 1
+
+
+Signal I/O
 ----------
-
-vital\_sqi.data.signal\_io module
----------------------------------
 
 .. automodule:: vital_sqi.data.signal_io
    :members:
-   :undoc-members:
    :show-inheritance:
 
-vital\_sqi.data.signal\_sqi\_class module
------------------------------------------
+
+``SignalSQI`` container
+-----------------------
 
 .. automodule:: vital_sqi.data.signal_sqi_class
    :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: vital_sqi.data
-   :members:
-   :undoc-members:
    :show-inheritance:

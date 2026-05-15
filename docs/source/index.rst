@@ -2,50 +2,54 @@ Welcome to vital_sqi's documentation!
 =====================================
 
 .. image:: ./_static/imgs/logo.png
-   :alt: Vital_SQI logo
+   :alt: vital_sqi logo
+   :align: center
 
 .. note::
-   Vital_SQI is a Python library designed for analyzing physiological signals (like ECG and PPG) and computing Signal Quality Indices (SQI).
 
+   **vital_sqi** is a Python library for analysing physiological signals
+   (ECG, PPG) and computing Signal Quality Indices (SQI). It bundles
+   classical SQIs from the literature, a calibrated rule engine, a
+   robust multi-regime classifier, and a calibration toolkit for deriving
+   thresholds from synthetic noise sweeps.
 
-The code of the project is on `GitHub <https://github.com/Oucru-Innovations/vital-sqi>`_.
+Source code lives on `GitHub <https://github.com/Oucru-Innovations/vital-sqi>`_.
 
-Getting Started
----------------
 .. toctree::
    :maxdepth: 2
+   :caption: Getting Started
 
    usage/installation
    usage/introduction
+   usage/quickstart
+
+.. toctree::
+   :maxdepth: 2
+   :caption: User Guide
+
    usage/pipeline
    usage/contributions
    usage/development
-   usage/quickstart
 
-Data Manipulation
------------------
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
+   :caption: Tutorials
 
    _examples/notebooks/Data_manipulation_ECG_PPG
-
-Pipeline
---------
-.. toctree::
-   :maxdepth: 2
-
    _examples/notebooks/SQI_pipeline
 
-Documentation
--------------
 .. toctree::
    :maxdepth: 2
+   :caption: API Reference
 
-   docstring/modules
-   docstring/vital_sqi.pipeline
    docstring/vital_sqi.sqi
+   docstring/vital_sqi.pipeline
    docstring/vital_sqi.calibration
    docstring/vital_sqi.rule
+   docstring/vital_sqi.preprocess
+   docstring/vital_sqi.common
+   docstring/vital_sqi.data
+   docstring/vital_sqi.dataset
 
 Indices and tables
 ==================

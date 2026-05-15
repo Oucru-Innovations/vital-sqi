@@ -175,16 +175,20 @@ Step 4 — ``get_sqi_dict`` (result packaging)
 Converts whatever the SQI function returns into a ``{column: value}``
 dict that maps cleanly to DataFrame columns:
 
-=========================  ===================================================
-Raw return type            Column(s) produced
-=========================  ===================================================
-``dict``                   Returned unchanged (e.g. ``poincare_sqi`` →
-                           ``{"sd1": …, "sd2": …, "area": …, "ratio": …}``)
-scalar (float/int)         ``{sqi_name: scalar}``
-1-element list/ndarray     ``{sqi_name: value}``
-multi-element list/ndarray ``{sqi_name_mean_sqi, sqi_name_median_sqi,``
-                           ``sqi_name_std_sqi}``
-=========================  ===================================================
+.. list-table:: ``get_sqi_dict`` rules
+   :header-rows: 1
+   :widths: 35 65
+
+   * - Raw return type
+     - Column(s) produced
+   * - ``dict``
+     - Returned unchanged (e.g. ``poincare_sqi`` → ``{"sd1": …, "sd2": …, "area": …, "ratio": …}``).
+   * - scalar (``float`` / ``int``)
+     - ``{sqi_name: scalar}``.
+   * - 1-element ``list`` / ``ndarray``
+     - ``{sqi_name: value}``.
+   * - multi-element ``list`` / ``ndarray``
+     - ``{sqi_name_mean_sqi, sqi_name_median_sqi, sqi_name_std_sqi}``.
 
 ---
 
@@ -204,7 +208,7 @@ through the cached NN-interval path.  All others receive the raw signal.
      - What it measures
    * - ``perfusion_sqi``
      - raw + filtered
-     - (max−min of filtered) / |mean of raw| × 100
+     - ``(max - min of filtered) / abs(mean of raw) * 100``
    * - ``kurtosis_sqi``
      - signal
      - Tail heaviness of the amplitude distribution
@@ -216,7 +220,7 @@ through the cached NN-interval path.  All others receive the raw signal.
      - Shannon entropy of the normalised amplitude histogram
    * - ``signal_to_noise_sqi``
      - signal
-     - |mean| / std — higher is cleaner
+     - ``abs(mean) / std`` — higher is cleaner
    * - ``zero_crossings_rate_sqi``
      - signal
      - Rate of sign changes — high value indicates noise

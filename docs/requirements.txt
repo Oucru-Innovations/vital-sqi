@@ -1,11 +1,18 @@
-# Local dependencies
-vitalsqi_toolkit
+# Documentation build dependencies for ReadTheDocs.
+#
+# These are layered ON TOP of the project's runtime requirements.txt — RTD
+# installs both (see .readthedocs.yaml).  Keep this list minimal: anything
+# that is also a project runtime dependency belongs in requirements.txt.
 
-sphinx
-sphinx-rtd-theme
-sphinx-gallery
-plotly
-ipython
-jupyter
-nbsphinx
+sphinx>=7,<8
+sphinx-rtd-theme>=2.0
+sphinxcontrib-jquery>=4.1
+
+# Notebook execution + plotly rendering.
+myst-nb>=1.0
+ipykernel
+nbformat
+plotly>=5.18
+
+# Image / output helpers used by tutorials.
 soundfile

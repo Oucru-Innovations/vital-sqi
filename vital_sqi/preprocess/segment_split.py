@@ -47,6 +47,9 @@ def save_segment(
 
     save_file_folder = save_file_folder or os.getcwd()
     save_img_folder = save_img_folder or os.getcwd()
+    # Guard against callers that pass segment_name=None (which would produce
+    # filenames like 'None-01.csv').
+    segment_name = segment_name or "segment"
     num_segments = len(segment_list)
     extension_len = len(str(num_segments))
 

@@ -1,0 +1,45 @@
+/* vital-sqi RTD theme tweaks */
+
+/* Make collapsed sub-sections in the sidebar visually distinct so the
+ * expand/collapse affordance is obvious. */
+.wy-menu-vertical li.toctree-l1 > a {
+    font-weight: 600;
+}
+
+.wy-menu-vertical li.toctree-l2 > a,
+.wy-menu-vertical li.toctree-l3 > a {
+    font-weight: normal;
+}
+
+/* Add a small chevron next to top-level captions that have children so
+ * the user knows they can be expanded. */
+.wy-menu-vertical p.caption {
+    margin-top: 1.2em;
+    color: #b3b3b3;
+    text-transform: uppercase;
+    font-size: 0.82em;
+    letter-spacing: 0.06em;
+}
+
+/* Plotly figures embedded in notebook output sometimes overflow the
+ * default RTD content width; let them shrink. */
+.plotly-graph-div,
+div[id^="plotly-html"] {
+    max-width: 100% !important;
+    margin: 0 auto;
+}
+
+/* The default RTD content area is a bit narrow for tables with many
+ * SQI columns — widen it slightly on large screens. */
+@media (min-width: 1200px) {
+    .wy-nav-content {
+        max-width: 1100px;
+    }
+}
+
+/* Make code blocks inside docstring tables wrap instead of producing a
+ * horizontal scroll bar when the line is short. */
+.rst-content table.docutils pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+}

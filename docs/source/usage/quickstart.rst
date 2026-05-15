@@ -150,7 +150,8 @@ Next Steps
 ----------
 Congratulations! You've successfully computed Signal Quality Indexes for your physiological signals. To learn more:
 - Explore the available SQIs in :doc:`introduction`.
-- Check out advanced workflows using :doc:`VitalDSP <../vitalDSP/introduction>` for preprocessing.
-- Dive into documentation on :doc:`../docstring/vital_sqi.pipeline` for integrating SQIs into larger projects.
+- Read the full pipeline reference in :doc:`pipeline` for the end-to-end workflow.
+- Check out `VitalDSP <https://vital-dsp.readthedocs.io/>`_ for advanced preprocessing.
+- Browse the API docs in :doc:`../docstring/vital_sqi.pipeline`.
 
 Happy coding!

@@ -1,29 +1,25 @@
-vital\_sqi.pipeline package
-===========================
+Pipeline (``vital_sqi.pipeline``)
+=================================
 
-Submodules
-----------
+End-to-end signal-to-decision pipeline: load a recording, segment it,
+compute SQIs, and classify each segment as ``"accept"`` or ``"reject"``.
 
-vital\_sqi.pipeline.pipeline\_functions module
-----------------------------------------------
+.. contents::
+   :local:
+   :depth: 1
 
-.. automodule:: vital_sqi.pipeline.pipeline_functions
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
-vital\_sqi.pipeline.pipeline\_highlevel module
-----------------------------------------------
+High-level entry points
+-----------------------
 
 .. automodule:: vital_sqi.pipeline.pipeline_highlevel
    :members:
-   :undoc-members:
    :show-inheritance:
 
-Module contents
----------------
 
-.. automodule:: vital_sqi.pipeline
+Core pipeline functions
+-----------------------
+
+.. automodule:: vital_sqi.pipeline.pipeline_functions
    :members:
-   :undoc-members:
    :show-inheritance:

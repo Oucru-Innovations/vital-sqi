@@ -1,53 +1,50 @@
-vital\_sqi.common package
-=========================
+Common utilities (``vital_sqi.common``)
+=======================================
 
-Submodules
-----------
+Shared helpers used across the SQI, pipeline, and calibration layers:
+band-pass filtering, R-peak detection, template generation, power
+spectrum estimation, and general utilities.
 
-vital\_sqi.common.band\_filter module
--------------------------------------
+.. contents::
+   :local:
+   :depth: 1
+
+
+Band-pass filter
+----------------
 
 .. automodule:: vital_sqi.common.band_filter
    :members:
-   :undoc-members:
    :show-inheritance:
 
-vital\_sqi.common.generate\_template module
--------------------------------------------
 
-.. automodule:: vital_sqi.common.generate_template
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-vital\_sqi.common.power\_spectrum module
-----------------------------------------
-
-.. automodule:: vital_sqi.common.power_spectrum
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-vital\_sqi.common.rpeak\_detection module
------------------------------------------
+R-peak detection
+----------------
 
 .. automodule:: vital_sqi.common.rpeak_detection
    :members:
-   :undoc-members:
    :show-inheritance:
 
-vital\_sqi.common.utils module
-------------------------------
+
+Template generation
+-------------------
+
+.. automodule:: vital_sqi.common.generate_template
+   :members:
+   :show-inheritance:
+
+
+Power spectrum
+--------------
+
+.. automodule:: vital_sqi.common.power_spectrum
+   :members:
+   :show-inheritance:
+
+
+Utilities
+---------
 
 .. automodule:: vital_sqi.common.utils
    :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: vital_sqi.common
-   :members:
-   :undoc-members:
    :show-inheritance:

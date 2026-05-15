@@ -1,37 +1,33 @@
-vital\_sqi.preprocess package
-=============================
+Preprocess (``vital_sqi.preprocess``)
+=====================================
 
-Submodules
-----------
+Signal preprocessing utilities: tapering and smoothing, removal of
+flat/constant regions, and time- or beat-based segmentation.
 
-vital\_sqi.preprocess.preprocess\_signal module
------------------------------------------------
+.. contents::
+   :local:
+   :depth: 1
+
+
+Tapering & smoothing
+--------------------
 
 .. automodule:: vital_sqi.preprocess.preprocess_signal
    :members:
-   :undoc-members:
    :show-inheritance:
 
-vital\_sqi.preprocess.removal\_utilities module
------------------------------------------------
+
+Removal utilities
+-----------------
 
 .. automodule:: vital_sqi.preprocess.removal_utilities
    :members:
-   :undoc-members:
    :show-inheritance:
 
-vital\_sqi.preprocess.segment\_split module
--------------------------------------------
+
+Segment splitter
+----------------
 
 .. automodule:: vital_sqi.preprocess.segment_split
    :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: vital_sqi.preprocess
-   :members:
-   :undoc-members:
    :show-inheritance:
