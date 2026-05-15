@@ -230,6 +230,34 @@ the R-peaks found by the selected algorithm.
 
 ---
 
+Classification modes
+--------------------
+
+After SQIs are computed, segments are labelled accept / reject by a
+rule engine.  Three threshold-selection strategies are available
+(:func:`vital_sqi.pipeline.pipeline_functions.classify_segments`,
+``auto_mode`` argument):
+
+* **Manual** — use thresholds shipped in ``rule_dict.json`` verbatim.
+  Best when applying externally calibrated bounds without adapting
+  them to the current recording.
+
+* **Quantile** (default) — replace each rule's bounds with the
+  empirical *lower / upper* quantiles (p5 / p95 by default) of the SQI
+  values observed across all segments.  Self-adapting per recording.
+
+* **Auto-tune** — pick the per-rule quantile so the *joint* accept
+  rate hits a user-specified target (default 85 %) under the
+  independence approximation.  Much more forgiving than plain Quantile
+  when several rules are stacked.
+
+A separate non-rule-based classifier — three-regime auto-detection
+(:func:`~vital_sqi.rule.classify_segments_robust`) — is also
+available for cases where you don't trust the rule definitions at all.
+
+See :doc:`pipeline` for the full math and a worked example.
+
+
 Using **vital_sqi** with VitalDSP
 ---------------------------------
 While **vital_sqi** can be used as a standalone library, it works best when combined with **VitalDSP**. Here’s why:

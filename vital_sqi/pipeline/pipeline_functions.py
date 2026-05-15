@@ -32,6 +32,62 @@ def _get_arg_names(func):
     return cached
 
 
+_DEFAULT_FS = 100.0
+
+
+def _infer_sample_rate(segment_df, args_or_argmap) -> float:
+    """Best-effort sampling-rate detection for the current segment.
+
+    Strategy (first match wins):
+
+    1. Derive fs from the segment's first column, assumed to be a
+       timestamp (``datetime64`` or numeric seconds).  This is the most
+       reliable source because it reflects the actual recording — not the
+       defaults baked into ``sqi_dict.json``.
+    2. Fall back to any ``sample_rate`` / ``sampling_rate`` value passed
+       in the SQI args dict.
+    3. Last-resort default of ``100`` Hz.
+
+    Always returns a positive float; callers should not need to guard
+    against NaN.
+    """
+    if hasattr(segment_df, "iloc") and segment_df.shape[1] >= 2:
+        try:
+            ts = segment_df.iloc[:, 0]
+            if pd.api.types.is_datetime64_any_dtype(ts):
+                deltas = ts.diff().dropna().dt.total_seconds().to_numpy()
+            else:
+                deltas = np.diff(pd.to_numeric(ts, errors="coerce").dropna().to_numpy())
+            deltas = deltas[deltas > 0]
+            if deltas.size:
+                step = float(np.median(deltas))
+                if step > 0:
+                    return 1.0 / step
+        except Exception:
+            pass
+    fs = _scan_args_for_fs(args_or_argmap)
+    if fs is not None and fs > 0:
+        return float(fs)
+    return _DEFAULT_FS
+
+
+def _scan_args_for_fs(args_or_argmap) -> "float | None":
+    """Return the first sample_rate / sampling_rate value found, or None."""
+    if not isinstance(args_or_argmap, dict):
+        return None
+    # Case 1: flat kwargs dict (called from get_sqi with a single SQI's args).
+    for key in ("sample_rate", "sampling_rate"):
+        if key in args_or_argmap and isinstance(args_or_argmap[key], (int, float)):
+            return float(args_or_argmap[key])
+    # Case 2: nested map of {name: {kwargs}} as used by extract_segment_sqi.
+    for inner in args_or_argmap.values():
+        if isinstance(inner, dict):
+            for key in ("sample_rate", "sampling_rate"):
+                if key in inner and isinstance(inner[key], (int, float)):
+                    return float(inner[key])
+    return None
+
+
 def classify_segments(
     sqis,
     rule_dict_filename,
@@ -41,6 +97,7 @@ def classify_segments(
     upper_bound=0.95,
     mode="legacy",
     robust_config=None,
+    target_accept_rate=0.85,
 ):
     """
     Classify each segment as ``'accept'`` or ``'reject'`` using threshold rules.
@@ -51,18 +108,35 @@ def classify_segments(
     ``'reject'`` short-circuits evaluation for that segment (linear early-exit,
     not recursive).
 
-    **Auto-mode** (``auto_mode=True``, the default):
-        Before classification, each rule's threshold values are replaced with
-        the empirical *lower_bound* and *upper_bound* quantiles of the SQI
-        values observed across all segments.  This makes the classifier
-        self-adapting: it accepts the middle 90% (or whatever quantile range
-        you choose) of the recording's own distribution.  Use this when you
-        trust the recording but not the pre-calibrated absolute bounds.
+    Threshold-selection strategies (``auto_mode`` argument)
+    ------------------------------------------------------
 
-    **Manual mode** (``auto_mode=False``):
-        Thresholds stored in *rule_dict_filename* are used exactly as written.
-        Use this when you want to apply externally calibrated bounds without
-        adapting them to the current recording.
+    ``auto_mode=False`` or ``"manual"``
+        Thresholds stored in *rule_dict_filename* are used exactly as
+        written.  Use this when you want to apply externally calibrated
+        bounds without adapting them to the current recording.
+
+    ``auto_mode=True`` or ``"quantile"`` *(default)*
+        Replace each rule's bounds with the empirical *lower_bound* /
+        *upper_bound* quantiles of the SQI values observed across all
+        segments.  Simple and predictable, but with many independent
+        rules the joint accept rate can be much lower than ``upper -
+        lower`` would suggest because each rule trims its own tails.
+
+    ``auto_mode="tune"``
+        Auto-tune the per-rule quantile so the *joint* accept rate
+        targets *target_accept_rate* (default ``0.85``).  Under the
+        independence approximation each rule keeps
+        ``target ** (1/n_rules)`` of its distribution, splitting the
+        trim symmetrically across both tails.  Much more forgiving than
+        plain ``"quantile"`` mode when several rules are active.  See
+        :func:`vital_sqi.rule.auto_threshold.per_rule_quantile` for the
+        underlying math.
+
+    Degenerate rules — SQIs whose distribution collapses to a single
+    value across the recording (e.g. ``zero_crossings_rate_sqi`` on
+    mean-centred PPG) — are dropped from the rule set with a warning
+    instead of producing a 0-width "reject everything" band.
 
     Parameters
     ----------
@@ -79,18 +153,22 @@ def classify_segments(
         Maps integer priority keys to rule names present in the rule file,
         e.g. ``{1: "kurtosis_sqi", 2: "perfusion_sqi"}``.  Lower key =
         evaluated first.  Only rules listed here participate in classification.
-    auto_mode : bool, optional
-        Adjust thresholds to observed quantiles before classifying
-        (default ``True``).
+    auto_mode : bool or str, optional
+        See above.  ``True`` is an alias for ``"quantile"``;
+        ``False`` is an alias for ``"manual"``.  Default ``True``.
     lower_bound : float, optional
-        Lower quantile for auto-mode threshold adjustment (default ``0.05``).
+        Lower quantile for ``"quantile"`` mode (default ``0.05``).
     upper_bound : float, optional
-        Upper quantile for auto-mode threshold adjustment (default ``0.95``).
+        Upper quantile for ``"quantile"`` mode (default ``0.95``).
+    target_accept_rate : float, optional
+        Joint accept rate target for ``"tune"`` mode (default ``0.85``).
+        Ignored unless ``auto_mode == "tune"``.
 
     Returns
     -------
     ruleset : RuleSet
         The :class:`~vital_sqi.rule.RuleSet` used for classification.
+        Only rules with usable (non-degenerate) bands are included.
     sqis : list of DataFrame
         The input list with an added ``"decision"`` column
         (``'accept'`` or ``'reject'``) in each DataFrame.
@@ -101,18 +179,34 @@ def classify_segments(
         If *rule_dict_filename* does not exist.
     KeyError
         If a rule name from *ruleset_order* is absent from the rule file.
+    ValueError
+        If *auto_mode* is not one of the documented values.
 
     Examples
     --------
     >>> ruleset_order = {1: "kurtosis_sqi", 2: "perfusion_sqi"}
     >>> ruleset, sqis = classify_segments(
     ...     sqis, "vital_sqi/resource/rule_dict.json",
-    ...     ruleset_order, auto_mode=True
+    ...     ruleset_order, auto_mode="tune", target_accept_rate=0.85,
     ... )
     >>> decisions = [df["decision"].iloc[0] for df in sqis]
     """
     if mode not in ("legacy", "robust"):
         raise ValueError(f"mode must be 'legacy' or 'robust', got {mode!r}")
+
+    # Normalise auto_mode to a canonical string so the rest of the body
+    # can switch on it cleanly.  Keep backwards-compatible bool aliases.
+    if auto_mode is True:
+        auto_mode_norm = "quantile"
+    elif auto_mode is False:
+        auto_mode_norm = "manual"
+    elif isinstance(auto_mode, str) and auto_mode in ("manual", "quantile", "tune"):
+        auto_mode_norm = auto_mode
+    else:
+        raise ValueError(
+            f"auto_mode must be True/False or one of "
+            "'manual', 'quantile', 'tune'; got {auto_mode!r}"
+        )
 
     # ── Robust mode: skip rule-dict entirely ────────────────────────────────
     if mode == "robust":
@@ -150,40 +244,100 @@ def classify_segments(
                 f"Available rules: {list(rule_dict.keys())}"
             )
 
+    from vital_sqi.rule.auto_threshold import (
+        quantile_band,
+        tuned_bands,
+    )
+
     ruleset = None
     for i, sqi_df in enumerate(sqis):
-        # Build per-channel rule list; in auto_mode thresholds are derived from
-        # this channel's own distribution (not blindly from channel 0).
+        # Build per-channel rule list; in auto modes the thresholds are
+        # derived from this channel's own distribution (not blindly from
+        # channel 0).  Auto-tune mode needs the full set of columns first
+        # so it can pick a per-rule quantile that hits the joint accept
+        # target — we pre-compute the bands before the rule-building
+        # loop in that case.
         rule_list = {}
         channel_rule_dict = {k: dict(v) for k, v in rule_dict.items()}
 
+        # ---- precompute bands when needed ---------------------------------
+        bands_by_name = {}  # rule_name → Band ('manual' mode leaves this empty)
+        if auto_mode_norm == "tune":
+            sqi_name_per_rule = {
+                rn: channel_rule_dict[rn]["name"] for rn in ruleset_order.values()
+            }
+            col_values = {
+                rn: sanitize_sqi(sqi_df[name].values)
+                for rn, name in sqi_name_per_rule.items()
+                if name in sqi_df.columns
+            }
+            for band in tuned_bands(col_values, target_accept_rate=target_accept_rate):
+                bands_by_name[band.column] = band
+        elif auto_mode_norm == "quantile":
+            for rule_name in ruleset_order.values():
+                sqi_name = channel_rule_dict[rule_name]["name"]
+                if sqi_name not in sqi_df.columns:
+                    continue
+                values = sanitize_sqi(sqi_df[sqi_name].values)
+                band = quantile_band(
+                    sqi_name, values,
+                    lower_pct=lower_bound, upper_pct=upper_bound,
+                )
+                if band is not None:
+                    bands_by_name[rule_name] = band
+
+        # ---- build rule list, skipping degenerate / missing entries -------
+        skipped_for_channel = []
         for rule_order, rule_name in ruleset_order.items():
             sqi_name = channel_rule_dict[rule_name]["name"]
 
-            if auto_mode:
-                clean = sanitize_sqi(sqi_df[sqi_name].values)
-                valid_values = clean[np.isfinite(clean)]
-                if len(valid_values) == 0:
-                    warnings.warn(
-                        f"No valid values for '{sqi_name}' in channel {i}; "
-                        "skipping auto-mode for this rule."
-                    )
-                else:
-                    lower_unit = np.quantile(valid_values, lower_bound)
-                    upper_unit = np.quantile(valid_values, upper_bound)
-                    sqi_rule = create_rule_def(
-                        sqi_name, lower_bound=lower_unit, upper_bound=upper_unit
-                    )
-                    channel_rule_dict[rule_name]["def"] = sqi_rule[sqi_name]["def"]
+            if auto_mode_norm == "manual":
+                # Honour the bounds shipped in the rule_dict verbatim.
+                rule = generate_rule(sqi_name, channel_rule_dict[rule_name]["def"])
+                rule_list[rule_order] = rule
+                continue
 
-            # Create the Rule using the SQI column name so that RuleSet.execute
-            # can look up the value by rule.name in the SQI DataFrame.
+            band = bands_by_name.get(rule_name)
+            if band is None:
+                # Either the column was missing, fewer than 2 finite values,
+                # or the band collapsed to zero width — skip rather than
+                # produce a rule that rejects every segment.
+                skipped_for_channel.append(sqi_name)
+                continue
+
+            sqi_rule = create_rule_def(
+                sqi_name, lower_bound=band.lower, upper_bound=band.upper
+            )
+            channel_rule_dict[rule_name]["def"] = sqi_rule[sqi_name]["def"]
             rule = generate_rule(sqi_name, channel_rule_dict[rule_name]["def"])
             rule_list[rule_order] = rule
 
-        ruleset = RuleSet(rule_list)
-        # selected_sqi: the SQI column names that rules actually reference
-        selected_sqi = [channel_rule_dict[rn]["name"] for rn in ruleset_order.values()]
+        if skipped_for_channel:
+            warnings.warn(
+                f"channel {i}: dropped {len(skipped_for_channel)} degenerate rule(s): "
+                f"{skipped_for_channel}",
+                stacklevel=2,
+            )
+
+        if not rule_list:
+            warnings.warn(
+                f"channel {i}: no usable rules; every segment will be 'accept'.",
+                stacklevel=2,
+            )
+            sqi_df = sqi_df.copy()
+            sqi_df["decision"] = ["accept"] * len(sqi_df)
+            sqis[i] = sqi_df
+            continue
+
+        # Renumber rule_list so the keys are consecutive starting from 1 —
+        # required by RuleSet's __setattr__ validator after we may have
+        # dropped rules.
+        compact = {
+            new_order: rule
+            for new_order, (_, rule) in enumerate(sorted(rule_list.items()), start=1)
+        }
+        ruleset = RuleSet(compact)
+        selected_sqi = [r.name for r in compact.values()]
         subset = sqi_df[selected_sqi]
         decisions = [
             ruleset.execute(subset.iloc[[idx]])
@@ -456,7 +610,17 @@ def get_sqi(
     # Use pre-computed nn_intervals if injected, otherwise compute from signal
     spec_args = _get_arg_names(sqi_func)
     if spec_args and spec_args[0] == "nn_intervals":
-        signal_values = _nn_intervals if _nn_intervals is not None else get_nn(signal_values)
+        if _nn_intervals is not None:
+            signal_values = _nn_intervals
+        else:
+            # P3 fix: forward the caller's wave_type / fs so ECG-at-256-Hz
+            # doesn't get processed through the PPG-100-Hz default.
+            inferred_fs = _infer_sample_rate(s, kwargs)
+            signal_values = get_nn(
+                signal_values,
+                wave_type=wave_type,
+                sample_rate=inferred_fs,
+            )
 
     if per_beat:
         # P3.1: use cached peaks when available; only detect if not provided
@@ -525,6 +689,10 @@ def extract_segment_sqi(s, sqi_list, sqi_names, sqi_arg_list, wave_type):
 
     # Compute nn_intervals once and reuse across all nn_intervals-based SQIs
     _nn_cache = None
+    # Sampling rate is needed for the underlying vitalDSP RR transformer.
+    # We infer it from the segment's timestamp column once per segment so we
+    # don't burn time on this per SQI.
+    inferred_fs = _infer_sample_rate(s, sqi_arg_list)
     # Peak lists computed lazily on first per_beat SQI; reused for subsequent ones
     peak_list = None
     trough_list = None
@@ -532,6 +700,12 @@ def extract_segment_sqi(s, sqi_list, sqi_names, sqi_arg_list, wave_type):
     for sqi_func, sqi_name in zip(sqi_list, sqi_names):
         args = sqi_arg_list.get(sqi_name, {}).copy()
         args["wave_type"] = wave_type
+        # Override any baked-in sample_rate / sampling_rate with the segment's
+        # actual fs so SQIs computed on non-100 Hz recordings work correctly.
+        if "sample_rate" in args:
+            args["sample_rate"] = inferred_fs
+        if "sampling_rate" in args:
+            args["sampling_rate"] = inferred_fs
         # Pass pre-hoisted array and cached peaks into get_sqi
         args["_signal_values"] = signal_values
         if args.get("per_beat", False):
@@ -551,13 +725,15 @@ def extract_segment_sqi(s, sqi_list, sqi_names, sqi_arg_list, wave_type):
                 sqi_scores.update(get_sqi(sqi_func, sqi_name, s, **args))
                 continue
 
-            _spec_args = _argspec_cache.get(sqi_func) or _argspec_cache.setdefault(
-                sqi_func, inspect.getfullargspec(sqi_func)[0] or []
-            )
+            _spec_args = _get_arg_names(sqi_func)
             first_arg = _spec_args[0] if _spec_args else ""
             if first_arg == "nn_intervals":
                 if _nn_cache is None:
-                    _nn_cache = get_nn(signal_values)
+                    _nn_cache = get_nn(
+                        signal_values,
+                        wave_type=wave_type,
+                        sample_rate=inferred_fs,
+                    )
                 args["_nn_intervals"] = _nn_cache
 
             sqi_scores.update(get_sqi(sqi_func, sqi_name, s, **args))

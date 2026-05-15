@@ -440,18 +440,191 @@ This design is:
 - **Short-circuiting** — reject-heavy rules placed early (low key)
   minimize average rule evaluations per segment.
 
-Auto-Mode Threshold Adjustment
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Threshold-selection strategies (``auto_mode``)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-When ``auto_mode=True`` (the default), ``classify_segments`` replaces
-the stored thresholds with the empirical p5/p95 quantiles of the
-observed SQI distribution across all segments *before* running the
-classifier.  This makes the pipeline self-adapting: thresholds shift
-to match the recording's actual signal quality distribution rather than
-relying solely on the calibrated bounds from synthetic data.
+``classify_segments`` supports three strategies for deciding the
+``(lower, upper)`` accept band on each rule:
 
-Set ``auto_mode=False`` to use the calibrated thresholds from
-``rule_dict.json`` exactly as stored.
+``auto_mode=False`` (or ``"manual"``)
+    Use the bounds stored in ``rule_dict.json`` verbatim.  Pick this
+    when you want to apply externally calibrated thresholds without
+    adapting them to the current recording.
+
+``auto_mode=True`` (or ``"quantile"``) — *default*
+    Replace each rule's bounds with the empirical *lower_bound* /
+    *upper_bound* quantiles (p5 / p95 by default) of the SQI values
+    observed across all segments.  Self-adapting, but the joint accept
+    rate falls off geometrically as you stack more rules: 5 rules at
+    p5/p95 on uniformly clean data only accept ~60 % of segments
+    because each rule independently trims its own tails.
+
+``auto_mode="tune"``
+    Per-rule quantile is computed automatically so the **joint** accept
+    rate (under the independence approximation) hits
+    ``target_accept_rate`` (default ``0.85``).  Solving the standard
+    equation ``target = (1 - 2q)^n`` for the symmetric trim ``q`` and
+    ``n`` rules: with 5 rules and target 0.85 each rule keeps ~96.8 %
+    of its distribution, i.e. bands at p1.6 / p98.4.  Much more
+    forgiving than plain ``"quantile"`` mode when several rules are
+    active.
+
+Degenerate rules — SQIs whose distribution is constant across the
+recording (e.g. ``zero_crossings_rate_sqi == 0`` for mean-centred
+clean PPG) — are dropped from the rule set with a warning instead of
+producing a "reject everything" 0-width band.
+
+See :mod:`vital_sqi.rule.auto_threshold` for the underlying helpers,
+which the Inspect view in the web app reuses for its live preview.
+
+The independence-approximation math
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Auto-tune mode picks a per-rule quantile ``q`` such that the *joint*
+accept rate hits the user's target.  Under the assumption that rules
+are independent — a reasonable simplification for SQIs that measure
+different facets of the signal — the joint accept rate is the product
+of the per-rule rates:
+
+.. math::
+
+   P(\text{accept}) = \prod_{i=1}^{n} P(\text{accept}_i)
+                    = (1 - 2q)^{n}
+
+Solving for the symmetric trim ``q`` given a target ``p``:
+
+.. math::
+
+   q = \frac{1 - p^{1/n}}{2}
+
+That's exactly what
+:func:`vital_sqi.rule.auto_threshold.per_rule_quantile` computes.
+For typical configurations:
+
+============  ========  ==================  ===================
+``n_rules``   ``p``     per-rule keep rate  per-rule trim ``q``
+============  ========  ==================  ===================
+1             0.85      0.850               7.5 % (p7.5 / p92.5)
+3             0.85      0.947               2.6 % (p2.6 / p97.4)
+5             0.85      0.968               1.6 % (p1.6 / p98.4)
+10            0.85      0.984               0.8 % (p0.8 / p99.2)
+5             0.95      0.990               0.5 % (p0.5 / p99.5)
+============  ========  ==================  ===================
+
+In practice rules are not perfectly independent — kurtosis and dtw
+both react to morphology disturbances, for instance — so the
+empirical joint accept rate is typically ± 3 percentage points of
+the target.  Good enough for an interactive UI control; if you need
+an exact rate, use the iterative widening strategy in
+:mod:`vital_sqi.rule.auto_threshold` (not yet exposed, see the
+auto_threshold module for the building blocks).
+
+
+Worked example — auto-tune on a clean PPG recording
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The reference recording is a 2-hour OUCRU SmartCare PPG file
+(100 Hz, 833 800 samples → 278 segments at 30 s windows).  Same SQI
+catalogue, same five-rule default subset (``kurtosis_sqi``,
+``perfusion_sqi``, ``correlogram_sqi``, ``msq_sqi``, ``dtw_sqi``);
+only the ``auto_mode`` configuration changes:
+
+==============================  ===========================================
+``auto_mode``                   accept rate (278 segments)
+==============================  ===========================================
+``"quantile"``, p5 / p95        **60.1 %** — over-restrictive
+``"quantile"``, p1 / p99        83.8 %
+``"tune"``, target 0.80         76.6 %
+``"tune"``, target 0.85         **80.9 %** — matches target
+``"tune"``, target 0.90         83.8 %
+==============================  ===========================================
+
+The p5 / p95 row shows the failure mode: with 5 independent rules each
+trimming 10 % of the distribution, the joint accept ceiling is
+``0.9^5 ≈ 59 %`` — which is exactly what the table shows on a clean
+recording.  Tune mode at 85 % is the recommended default for
+interactive use; the GUI's *Threshold mode → Auto-tune* slider
+exposes this directly.
+
+
+Implementation outline
+^^^^^^^^^^^^^^^^^^^^^^
+
+``classify_segments`` dispatches on ``auto_mode`` in three branches::
+
+    if auto_mode == "manual":
+        # Use the bounds in rule_dict.json verbatim.
+        rule = generate_rule(name, rule_dict[name]["def"])
+
+    elif auto_mode == "quantile":
+        # Per-column p5/p95-style band; drop degenerate columns.
+        band = auto_threshold.quantile_band(
+            name, sqi_df[name].values,
+            lower_pct=lower_bound, upper_pct=upper_bound,
+        )
+        if band is None:
+            continue  # degenerate or all-NaN; drop with warning
+
+    elif auto_mode == "tune":
+        # Pre-compute every band so per-rule quantile is uniform.
+        all_bands = auto_threshold.tuned_bands(
+            {name: sqi_df[name].values for name in candidate_columns},
+            target_accept_rate=target_accept_rate,
+        )
+
+After the loop the surviving bands populate a single
+:class:`~vital_sqi.rule.RuleSet`; consecutive integer priorities are
+re-assigned so the rule set's "no gaps starting at 1" invariant
+holds even after drops.  Classification is then the existing linear
+early-exit scan from ``RuleSet.execute``.
+
+
+Degenerate-band guard
+^^^^^^^^^^^^^^^^^^^^^
+
+Both ``quantile`` and ``tune`` modes share a single test::
+
+    band_width = upper - lower
+    if band_width < 1e-6:
+        # Column is essentially constant; skip with warning.
+        continue
+
+The threshold (``DEGENERATE_BAND_HALF_WIDTH = 1e-6``) is the same one
+used by :mod:`vital_sqi.calibration.threshold_estimator` for its
+constant-column epsilon guard.  This catches:
+
+* ``zero_crossings_rate_sqi`` on already-mean-centred clean signals
+  (always 0).
+* ``ectopic_sqi`` on recordings with no detected ectopics
+  (``rule_index=0`` → always returns the no-ectopic outlier ratio of
+  ~1.0).
+* ``hfe_sqi`` whose default band sits above Nyquist for
+  ``sampling_rate=100`` (always 0).
+
+Each dropped rule logs a warning naming the column and the observed
+band; the user sees them as *Auto-skipped: …* in the Inspect view's
+rule panel.
+
+
+Strictest-rule detection
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Inspect view's *Drop strictest rule* button calls
+:func:`vital_sqi.rule.auto_threshold.strictest_columns` over the
+per-rule rejection tally::
+
+    counts = {"kurtosis_sqi": 23, "perfusion_sqi": 28, "msq_sqi": 28,
+              "correlogram_sqi": 21, "dtw_sqi": 11}
+    median = 23
+    mad    = 5
+    threshold = median + 3*MAD = 38
+    # No outliers — all counts within bounds.
+
+This uses the **modified Z-score** (median + ``k`` × MAD) rather than
+mean + k·σ, because the very outlier you're trying to detect would
+inflate the mean and standard deviation and hide itself.  The default
+``k = 3`` flags clear upward outliers without false-positive nags on
+roughly-even distributions.
 
 ``ruleset_order`` and ``get_decision_segments``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

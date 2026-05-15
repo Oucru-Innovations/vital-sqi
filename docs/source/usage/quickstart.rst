@@ -146,6 +146,69 @@ Here’s a complete example workflow to compute and analyze SQIs:
 
 ---
 
+End-to-end pipeline with auto-tuned classifier
+----------------------------------------------
+
+The example above computes individual SQIs.  Most users want the full
+pipeline: load → segment → extract every SQI → classify segments as
+accept / reject.  That's four calls:
+
+.. code-block:: python
+
+   import pandas as pd
+   from vital_sqi.common.utils import generate_timestamp
+   from vital_sqi.preprocess.segment_split import split_segment
+   from vital_sqi.pipeline.pipeline_functions import (
+       extract_sqi, classify_segments,
+   )
+
+   # 1. Load + wrap into a DataFrame with a timestamps column.
+   df = pd.read_csv("recording.csv")
+   fs = 100
+   df = pd.DataFrame({
+       "timestamps": generate_timestamp(None, fs, len(df)),
+       "signal":     df["PPG"].values,
+   })
+
+   # 2. Split into 30-second non-overlapping segments.
+   segments, milestones = split_segment(
+       df, sampling_rate=fs, split_type=0,
+       duration=30, overlapping=0, wave_type="PPG",
+   )
+
+   # 3. Compute every SQI in the bundled catalogue.
+   sqi_df = extract_sqi(
+       segments, milestones,
+       "vital_sqi/resource/sqi_dict.json",
+       wave_type="PPG",
+   )
+
+   # 4. Classify each segment.  Auto-tune mode targets an 85 % joint
+   #    accept rate; per-rule quantiles are picked accordingly under
+   #    the independence approximation.
+   ruleset_order = {
+       1: "kurtosis_sqi",
+       2: "perfusion_sqi",
+       3: "correlogram_sqi",
+       4: "msq_sqi",
+       5: "dtw_sqi",
+   }
+   ruleset, sqis_with_decisions = classify_segments(
+       [sqi_df.copy()],
+       rule_dict_filename="vital_sqi/resource/rule_dict.json",
+       ruleset_order=ruleset_order,
+       auto_mode="tune",
+       target_accept_rate=0.85,
+   )
+
+   decisions = list(sqis_with_decisions[0]["decision"])
+   print(f"Accepted {decisions.count('accept')}/{len(decisions)} segments")
+
+For the corresponding GUI workflow — drop a recording in the browser
+and tweak the threshold mode interactively — see :doc:`app`.
+
+---
+
 Next Steps
 ----------
 Congratulations! You've successfully computed Signal Quality Indexes for your physiological signals. To learn more:

@@ -1,62 +1,102 @@
-from dash import dcc
-from dash import html
-import dash_bootstrap_components as dbc
-from dash.dependencies import Input, Output, State
-from vital_sqi.app.util.parsing import parse_data
-from vital_sqi.app.app import app
-from vital_sqi.app.views import dashboard1, dashboard2, dashboard3
+"""Top-level Dash layout and routing for the vital_sqi web app.
+
+Phase 5 streamlines the navigation: the legacy Home / Rules / Apply
+dashboards have been removed.  The remaining surface is::
+
+    Compute    → drop a recording, run the SQI pipeline
+    Inspect    → browse the SQI table + per-segment waveform
+    Calibrate  → re-derive thresholds and write them as defaults
+    Export     → bundle the current run for offline use
+
+Each tab corresponds to one view module under ``vital_sqi.app.views``.
+The sidebar lights up tabs as data becomes available — Inspect and
+Export require an SQI table; Compute and Calibrate are always
+enabled.
+"""
+
+from __future__ import annotations
+
 import logging
 
-# the style arguments for the sidebar. We use position:fixed and a fixed width
+import dash_bootstrap_components as dbc
+from dash import dcc, html
+from dash.dependencies import Input, Output
+
+from vital_sqi.app.app import app
+from vital_sqi.app.views import calibrate, compute, export, inspect
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Static styles
+# ---------------------------------------------------------------------------
+
 SIDEBAR_STYLE = {
     "position": "fixed",
     "top": 0,
     "left": 0,
     "bottom": 0,
-    "width": "12rem",
-    "padding": "2rem 1rem",
+    "width": "14rem",
+    "padding": "1.5rem 1rem",
     "background-color": "#f8f9fa",
+    "overflowY": "auto",
 }
 
-# the styles for the main content position it to the right of the sidebar and
-# add some padding.
 CONTENT_STYLE = {
-    "margin-left": "18rem",
+    "margin-left": "16rem",
     "margin-right": "2rem",
     "padding": "2rem 1rem",
 }
 
+
+# ---------------------------------------------------------------------------
+# Sidebar
+# ---------------------------------------------------------------------------
+
 sidebar = html.Div(
     [
-        html.H2("Menu", className="display-4"),
+        html.H2("vital_sqi", className="display-6"),
+        html.P("Signal Quality Indices", className="text-muted small"),
         html.Hr(),
         dbc.Nav(
             [
-                dbc.NavLink("Home", href="/", active="exact"),
                 dbc.NavLink(
-                    "Dashboard 1",
-                    id="dashboard_1_link",
-                    disabled=True,
-                    href="/views/dashboard1",
+                    "Compute",
+                    id="compute_link",
+                    href="/views/compute",
                     active="exact",
                 ),
                 dbc.NavLink(
-                    "Dashboard 2",
-                    id="dashboard_2_link",
+                    "Inspect",
+                    id="inspect_link",
                     disabled=True,
-                    href="/views/dashboard2",
+                    href="/views/inspect",
                     active="exact",
                 ),
                 dbc.NavLink(
-                    "Dashboard 3",
-                    id="dashboard_3_link",
+                    "Calibrate",
+                    id="calibrate_link",
+                    href="/views/calibrate",
+                    active="exact",
+                ),
+                dbc.NavLink(
+                    "Export",
+                    id="export_link",
                     disabled=True,
-                    href="/views/dashboard3",
+                    href="/views/export",
                     active="exact",
                 ),
             ],
             vertical=True,
             pills=True,
+        ),
+        html.Hr(),
+        html.Small(
+            "Inspect and Export unlock once an SQI table is available — "
+            "either from Compute or from the optional upload card on the "
+            "Compute page.",
+            className="text-muted",
         ),
     ],
     style=SIDEBAR_STYLE,
@@ -64,111 +104,82 @@ sidebar = html.Div(
 
 content = html.Div(id="page-content", style=CONTENT_STYLE)
 
+
+# ---------------------------------------------------------------------------
+# App-wide layout
+# ---------------------------------------------------------------------------
+
 app.layout = html.Div(
     [
-        # Store dataframe
-        dcc.Store(id="dataframe", storage_type="local"),
-        dcc.Store(id="rule-set-store", storage_type="local"),
-        dcc.Store(id="rule-dataframe", storage_type="local"),
+        # ``dataframe`` is the canonical SQI-table store.  Compute writes it;
+        # Inspect and Export read it.  Switched from local → memory now that
+        # we no longer need the Home page's "I'll refresh and keep my data"
+        # property; the SQI table is regenerated by every Compute run.
+        dcc.Store(id="dataframe", storage_type="memory"),
+        # Raw waveform + segment milestones (Phase 2) — populated by Compute
+        # for the Inspect view's per-segment waveform plot.
+        dcc.Store(id="raw-waveform", storage_type="memory"),
+        dcc.Store(id="segment-milestones", storage_type="memory"),
+        # Phase 5: promoted ``inspect-decisions`` to the app root so the
+        # Export view can read the same accept/reject decisions the
+        # Inspect view computed (rather than re-running the classifier).
+        dcc.Store(id="inspect-decisions", storage_type="memory"),
         dcc.Location(id="url", refresh=False),
         sidebar,
         content,
     ]
 )
 
-home_content = html.Div(
-    [
-        html.H2("SQIs Table"),
-        dcc.Upload(
-            id="upload-data",
-            children=html.Div(["Drag and Drop or ", html.A("Select Files")]),
-            style={
-                "width": "100%",
-                "height": "50px",
-                "lineHeight": "60px",
-                "borderWidth": "1px",
-                "borderStyle": "dashed",
-                "borderRadius": "2px",
-                "textAlign": "center",
-                "margin": "2px",
-            },
-            # Allow multiple files to be uploaded
-            multiple=False,
-        ),
-        html.H2("Rule Table (Optional)"),
-        dcc.Upload(
-            id="upload-rule",
-            children=html.Div(["Drag and Drop or ", html.A("Select Files")]),
-            style={
-                "width": "100%",
-                "height": "50px",
-                "lineHeight": "60px",
-                "borderWidth": "1px",
-                "borderStyle": "dashed",
-                "borderRadius": "2px",
-                "textAlign": "center",
-                "margin": "2px",
-            },
-            # Allow multiple files to be uploaded
-            multiple=False,
-        ),
-        # dbc.Progress(id='upload-progress',striped= True,animated= True)
-    ]
-)
+
+# ---------------------------------------------------------------------------
+# Routing
+# ---------------------------------------------------------------------------
 
 
 @app.callback(Output("page-content", "children"), Input("url", "pathname"))
 def display_page(pathname):
-    if pathname == "/views/dashboard1":
-        return dashboard1.layout
-    elif pathname == "/views/dashboard2":
-        return dashboard2.layout
-    elif pathname == "/views/dashboard3":
-        return dashboard3.layout
-    else:
-        return home_content
+    """Map URL paths to view layouts.  Default lands on Compute."""
+    if pathname in (None, "/", "/views/compute"):
+        return compute.layout
+    if pathname in ("/views/inspect", "/views/dashboard1"):
+        # /views/dashboard1 kept as a courtesy redirect for any bookmark
+        # left over from before Phase 5.  Same layout served either way.
+        return inspect.layout
+    if pathname == "/views/calibrate":
+        return calibrate.layout
+    if pathname == "/views/export":
+        return export.layout
+    # Unknown route → back to Compute.
+    return compute.layout
+
+
+# ---------------------------------------------------------------------------
+# Sidebar enable/disable based on the dataframe store
+# ---------------------------------------------------------------------------
 
 
 @app.callback(
-    Output("dataframe", "data"),
-    Output("dashboard_1_link", "disabled"),
-    Output("dashboard_2_link", "disabled"),
-    Output("dashboard_3_link", "disabled"),
-    Input("upload-data", "contents"),
-    State("upload-data", "filename"),
-    State("upload-data", "last_modified"),
-    State("dataframe", "data"),
+    Output("inspect_link", "disabled"),
+    Output("export_link", "disabled"),
+    Input("dataframe", "data"),
 )
-def update_output(content, filename, last_modified, state_data):
-    try:
-        if content is not None:
-            df = parse_data(content, filename)
-            if isinstance(df, dict):  # Ensure valid data is returned
-                return [df, False, False, False]
-        if state_data is not None:
-            return [state_data, False, False, False]
-        return [None, True, True, True]
-    except Exception as e:
-        print(f"Error in update_output: {e}")
-        return [None, True, True, True]
+def _gate_tabs(dataframe_payload):
+    """Inspect + Export are only meaningful once an SQI table is loaded."""
+    has_data = bool(dataframe_payload)
+    return (not has_data), (not has_data)
 
 
-# Load rule set
-@app.callback(
-    Output("rule-set-store", "data"),
-    Input("upload-rule", "contents"),
-    State("upload-rule", "filename"),
-    State("upload-rule", "last_modified"),
-    State("rule-set-store", "data"),
-)
-def upload_rule(content, filename, last_modified, state_data):
-    if content is not None:
-        df = parse_data(content, filename)
-        return df
-    elif state_data is not None:
-        return state_data
-    return None
-
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    logging.basicConfig(level=logging.INFO)
+    # Disable Werkzeug's auto-reloader: on Windows it occasionally throws
+    # ``OSError: [WinError 10038]`` from the socket selector during a
+    # restart, which is noisy and harmless but clutters the log.  Keep
+    # ``debug=True`` so callback tracebacks still surface in the UI.
+    import os
+
+    use_reloader = os.environ.get("VITAL_SQI_APP_RELOAD", "0") == "1"
+    app.run(debug=True, use_reloader=use_reloader)

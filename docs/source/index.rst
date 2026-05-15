@@ -28,6 +28,7 @@ Source code lives on `GitHub <https://github.com/Oucru-Innovations/vital-sqi>`_.
    :caption: User Guide
 
    usage/pipeline
+   usage/app
    usage/contributions
    usage/development
 

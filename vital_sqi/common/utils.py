@@ -49,8 +49,23 @@ def get_nn(
         Input signal data.
     wave_type : str, optional
         Type of waveform ('PPG' or 'ECG'), by default 'PPG'.
+
+        .. warning::
+
+           Callers must pass the correct ``wave_type``.  Passing ECG data
+           through the PPG default produces no peaks because the underlying
+           ``vitalDSP.transforms.beats_transformation.RRTransformation``
+           runs morphology-specific preprocessing that destroys the wrong
+           signal type.
     sample_rate : int or float, optional
         Sampling frequency in Hz, by default 100.
+
+        .. warning::
+
+           The default ``100`` exists for backwards compatibility but is
+           almost never right for ECG data (commonly 128/250/256/500 Hz).
+           Pass the actual sampling rate or peak detection will silently
+           fail and return an empty array.
     rpeak_method : int, optional
         Method identifier for R-peak detection, by default 6.
     remove_ectopic_beat : bool, optional
@@ -59,8 +74,11 @@ def get_nn(
     Returns
     -------
     np.ndarray
-        Array of NN intervals in milliseconds.
+        Array of NN intervals in milliseconds.  Empty array on failure;
+        the failure reason is logged at ``DEBUG`` level on the module's
+        named logger.
     """
+    _log = logging.getLogger(__name__)
     try:
         transformer = RRTransformation(
             signal=signal, fs=sample_rate, signal_type=wave_type
@@ -71,7 +89,11 @@ def get_nn(
         nn_intervals_non_na = rr_intervals[~np.isnan(rr_intervals)]
         return nn_intervals_non_na
     except Exception as e:
-        logging.error(f"Error in get_nn function: {e}")
+        # Failure here is a recoverable signal-quality issue, not a
+        # programmer bug — log at DEBUG so it doesn't drown the console
+        # for every noisy segment.  Callers see the empty return value and
+        # turn it into the NaN they need.
+        _log.debug("get_nn failed (%s @ %s Hz): %s", wave_type, sample_rate, e)
         return np.array([])
 
 
