@@ -20,6 +20,16 @@ from vital_sqi.sqi import sqi_mapping
 # Cache getfullargspec results per function — introspection is static and
 # called once per SQI per segment, which adds up across thousands of segments.
 _argspec_cache: dict = {}
+_ARGSPEC_MISS = object()  # sentinel so empty arg lists [] are still cached
+
+
+def _get_arg_names(func):
+    """Memoised positional-arg list for *func*. Handles 0-arg functions correctly."""
+    cached = _argspec_cache.get(func, _ARGSPEC_MISS)
+    if cached is _ARGSPEC_MISS:
+        cached = inspect.getfullargspec(func)[0] or []
+        _argspec_cache[func] = cached
+    return cached
 
 
 def classify_segments(
@@ -444,9 +454,7 @@ def get_sqi(
         signal_values = np.asarray(s)
 
     # Use pre-computed nn_intervals if injected, otherwise compute from signal
-    spec_args = _argspec_cache.get(sqi_func) or _argspec_cache.setdefault(
-        sqi_func, inspect.getfullargspec(sqi_func)[0] or []
-    )
+    spec_args = _get_arg_names(sqi_func)
     if spec_args and spec_args[0] == "nn_intervals":
         signal_values = _nn_intervals if _nn_intervals is not None else get_nn(signal_values)
 
@@ -474,10 +482,7 @@ def get_sqi(
         )
     else:
         # Add wave_type to kwargs if needed
-        _wt_spec = _argspec_cache.get(sqi_func) or _argspec_cache.setdefault(
-            sqi_func, inspect.getfullargspec(sqi_func)[0] or []
-        )
-        if "wave_type" in _wt_spec:
+        if "wave_type" in spec_args:
             kwargs["wave_type"] = wave_type
         sqi_scores = sqi_func(signal_values, **kwargs)
 

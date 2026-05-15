@@ -861,6 +861,52 @@ Part 6 — Complete End-to-End Example
 
 ---
 
+Performance Notes
+-----------------
+
+A few hot paths have been hand-tuned and are worth knowing about when
+benchmarking or extending the library:
+
+- **``_argspec_cache`** in :mod:`vital_sqi.pipeline.pipeline_functions` memoises
+  ``inspect.getfullargspec`` per SQI callable.  The cache uses a sentinel value
+  so SQIs with **no positional arguments** are still cached after the first
+  call (an earlier ``or``-based lookup silently recomputed for empty lists).
+- **DTW reference templates** are cached in
+  :mod:`vital_sqi.sqi.dtw_sqi` keyed by ``(template_type, template_size)``.
+  Because :func:`~vital_sqi.common.generate_template.rr_process` is now seeded
+  by default, ``ecg_dynamic_template`` is reproducible between runs and the
+  cached template is identical from one call to the next.
+- **``sample_entropy_sqi``** vectorises the inner template-match counter
+  with ``sliding_window_view``; complexity remains O(n²) but the inner loop
+  runs in NumPy rather than Python.
+- **``dfa_sqi``** uses a closed-form per-block linear detrend (no
+  ``np.polyfit`` call per block), giving a 10-20× speed-up on long
+  recordings.
+- **``squeeze_template``** is fully vectorised via a cumulative-sum trick;
+  template generation for DTW is now negligible cost.
+- **``nn_intervals``** are computed once per segment by
+  :func:`~vital_sqi.pipeline.pipeline_functions.extract_segment_sqi` and
+  injected into every HRV SQI via a private ``_nn_intervals=`` kwarg.
+
+Numerical Edge Cases
+--------------------
+
+The following SQIs intentionally return ``np.nan`` (not ``0``) when their
+underlying assumption fails — so downstream rules can treat the result as
+"missing" rather than as a legitimate quality score:
+
+- ``hf_energy_sqi`` / ``vhf_norm_power_sqi`` — band lies above Nyquist
+- ``sample_entropy_sqi`` — either the m-length or (m+1)-length template
+  match count is zero (would otherwise produce ``±inf``)
+- ``perfusion_sqi`` — raw-signal mean is near zero
+- ``baseline_wander_sqi`` / ``spectral_snr_sqi`` — total or out-of-band
+  power is zero
+- ``amplitude_consistency_sqi`` — fewer than two peaks detected
+
+Rules built from the calibrated ``rule_dict.json`` treat ``NaN`` as
+``"reject"`` (see :meth:`~vital_sqi.rule.Rule.apply_rule`), so these guards
+fail safe.
+
 See Also
 --------
 

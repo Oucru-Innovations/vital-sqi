@@ -60,11 +60,13 @@ def band_energy_sqi(signal, sampling_rate=100, band=None, nperseg=2048):
     )
 
     if band is None:
-        max_time_marginal = max(np.sum(np.abs(spec), axis=0)).real
+        max_time_marginal = float(np.max(np.sum(np.abs(spec), axis=0)))
     else:
         assert isinstance(band, list) and band[0] <= band[1], "Invalid band values."
         idx = np.where((f > band[0]) & (f <= band[1]))[0]
-        max_time_marginal = max(np.sum(np.abs(spec[idx]), axis=0)).real
+        if len(idx) == 0:
+            return 0.0
+        max_time_marginal = float(np.max(np.sum(np.abs(spec[idx]), axis=0)))
 
     return max_time_marginal
 
@@ -132,7 +134,6 @@ def hf_energy_sqi(signal, sampling_rate, band=None):
     float
         High-frequency energy SQI.
     """
-    import warnings
     if band is None:
         band = [100, np.inf]
     nyquist = sampling_rate / 2.0
@@ -140,10 +141,11 @@ def hf_energy_sqi(signal, sampling_rate, band=None):
         warnings.warn(
             f"hf_energy_sqi: band lower bound ({band[0]} Hz) is at or above Nyquist "
             f"({nyquist} Hz) for sampling_rate={sampling_rate}. "
-            "The result will be 0. Pass a band appropriate for this sampling rate.",
+            "Returning NaN. Pass a band appropriate for this sampling rate.",
             UserWarning,
             stacklevel=2,
         )
+        return np.nan
     return band_energy_sqi(signal, sampling_rate, band)
 
 
@@ -171,7 +173,6 @@ def vhf_norm_power_sqi(signal, sampling_rate, band=None, nperseg=2048):
         Normalized power in the very high-frequency band, or NaN if the band
         contains no STFT bins.
     """
-    import warnings
     if band is None:
         band = [150, np.inf]
     nyquist = sampling_rate / 2.0
@@ -210,7 +211,7 @@ def vhf_norm_power_sqi(signal, sampling_rate, band=None, nperseg=2048):
     peak = max(freq_marginal)
     if peak == 0:
         return np.nan
-    np_vhf = (np.median(freq_marginal) / peak).real
+    np_vhf = float(np.median(freq_marginal) / peak)
 
     return np_vhf
 

@@ -646,41 +646,47 @@ def format_milestone(start_milestone, end_milestone):
 
 def check_signal_format(s):
     """
-    Checks and converts the input signal to a DataFrame with a 'timestamp' column if missing.
+    Validate input and return a DataFrame with a ``'timestamps'`` column.
+
+    Coerces lists/ndarrays into a single-column ``'signal'`` DataFrame, then
+    ensures a leading ``'timestamps'`` column of dtype ``datetime64``.
 
     Parameters
     ----------
     s : pd.DataFrame, list, or np.ndarray
-        Input signal data. Can be a DataFrame, list, or numpy array.
+        Input signal data.
 
     Returns
     -------
     pd.DataFrame
-        Validated and formatted DataFrame with 'timestamp' and 'signal' columns.
+        DataFrame with a ``'timestamps'`` column (datetime64) followed by at
+        least one numeric signal column.
+
+    Raises
+    ------
+    TypeError
+        If *s* is not a DataFrame, list, or numpy array, or if the signal
+        column is not numeric.
     """
-    # Convert to DataFrame if necessary
     if not isinstance(s, pd.DataFrame):
         if isinstance(s, (list, np.ndarray)):
             s = pd.DataFrame(s, columns=["signal"])
         else:
-            logging.error(
-                "Invalid input type. Expected DataFrame, list, or numpy array."
+            raise TypeError(
+                f"Expected DataFrame, list, or numpy array; got {type(s).__name__}."
             )
-            return None  # or handle accordingly
 
-    # Check or create 'timestamp' column
     if "timestamps" not in s.columns or not np.issubdtype(
         s["timestamps"].dtype, np.datetime64
     ):
+        # If a stale non-datetime 'timestamps' column exists, drop it before
+        # inserting a fresh one to avoid duplicate-column errors.
+        if "timestamps" in s.columns:
+            s = s.drop(columns=["timestamps"])
         s.insert(0, "timestamps", pd.to_datetime(pd.Series(range(len(s))), unit="s"))
-        logging.error(
-            "No valid timestamps column found. Generated 'timestamps' column based on index."
-        )
 
-    # Ensure the second column is numerical
     if not np.issubdtype(s.iloc[:, 1].dtype, np.number):
-        logging.error("The signal column contains non-numeric values.")
-        return None  # or handle accordingly
+        raise TypeError("The signal column must be numeric.")
 
     return s
 

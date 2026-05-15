@@ -652,8 +652,15 @@ def sample_entropy_sqi(nn_intervals, m=2, r=None):
     Returns
     -------
     float
-        Sample entropy value >= 0, or ``np.nan`` on invalid input or when
-        no template matches are found.
+        Sample entropy value >= 0, or ``np.nan`` on invalid input, when the
+        m-length match count is zero, or when no longer (m+1) matches are
+        found (avoids ``-log(0/B)`` producing ``+inf``).
+
+    Notes
+    -----
+    The internal template-match counter is vectorised with
+    ``np.lib.stride_tricks.sliding_window_view`` and broadcasting, so the
+    NumPy-level cost is O(n²) but the Python overhead is constant.
 
     References
     ----------
@@ -671,17 +678,24 @@ def sample_entropy_sqi(nn_intervals, m=2, r=None):
             return np.nan
 
         def _count_matches(seq, length, tol):
+            # Vectorised Chebyshev-distance matching across all template pairs.
+            # Equivalent to the textbook nested-loop sample-entropy counter but
+            # uses sliding_window_view + broadcasting for O(n^2) NumPy work
+            # instead of O(n^2) Python work.
+            n_templates = len(seq) - length
+            if n_templates < 2:
+                return 0
+            windows = np.lib.stride_tricks.sliding_window_view(seq, length)[:n_templates]
             count = 0
-            for i in range(len(seq) - length):
-                template = seq[i: i + length]
-                for j in range(i + 1, len(seq) - length):
-                    if np.max(np.abs(seq[j: j + length] - template)) < tol:
-                        count += 1
+            # Process row-by-row to keep memory at O(n*length) instead of O(n^2*length).
+            for i in range(n_templates - 1):
+                diff = np.abs(windows[i + 1:] - windows[i])
+                count += int(np.sum(np.max(diff, axis=1) < tol))
             return count
 
         A = _count_matches(nn, m + 1, r)
         B = _count_matches(nn, m, r)
-        if B == 0:
+        if B == 0 or A == 0:
             return np.nan
         return float(-np.log(A / B))
     except Exception as e:
@@ -715,6 +729,13 @@ def dfa_sqi(nn_intervals, scale_min=4, scale_max=None, n_scales=10):
     float
         DFA alpha1 scaling exponent, or ``np.nan`` on insufficient data.
 
+    Notes
+    -----
+    The per-block linear detrend is computed in closed form (slope from
+    ``cov(x, y) / var(x)``) instead of calling ``np.polyfit`` once per block,
+    so the loop over scales touches each block exactly once via vectorised
+    NumPy operations.
+
     References
     ----------
     Peng C.K. et al. (1995). Chaos 5(1):82-87.
@@ -744,13 +765,18 @@ def dfa_sqi(nn_intervals, scale_min=4, scale_max=None, n_scales=10):
             if n_blocks < 2:
                 continue
             blocks = profile[: n_blocks * s].reshape(n_blocks, s)
-            x = np.arange(s)
-            rms = []
-            for block in blocks:
-                coef = np.polyfit(x, block, 1)
-                trend = np.polyval(coef, x)
-                rms.append(np.sqrt(np.mean((block - trend) ** 2)))
-            fluctuations.append((s, np.mean(rms)))
+            # Closed-form per-row linear detrend: each block detrended against
+            # x = 0..s-1 in one vectorised pass, replacing per-block polyfit.
+            x = np.arange(s, dtype=float)
+            x_mean = x.mean()
+            x_centred = x - x_mean
+            denom = np.sum(x_centred * x_centred)
+            block_means = blocks.mean(axis=1, keepdims=True)
+            slopes = (blocks - block_means) @ x_centred / denom
+            intercepts = block_means[:, 0] - slopes * x_mean
+            trends = slopes[:, None] * x + intercepts[:, None]
+            rms = np.sqrt(np.mean((blocks - trends) ** 2, axis=1))
+            fluctuations.append((s, float(np.mean(rms))))
 
         if len(fluctuations) < 2:
             return np.nan

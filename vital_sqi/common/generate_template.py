@@ -24,16 +24,19 @@ def squeeze_template(s, width):
     numpy.ndarray
         Compressed signal.
     """
-    s = np.array(s)
+    s = np.asarray(s)
     total_len = len(s)
+    width = int(width)
+    if width <= 0:
+        raise ValueError("width must be a positive integer.")
     span_unit = 2
-    out_res = []
-    for i in range(int(width)):
-        centroid = (total_len / width) * i
-        left_point = max(0, int(centroid) - span_unit)
-        right_point = min(len(s), int(centroid + span_unit))
-        out_res.append(np.mean(s[left_point:right_point]))
-    return np.array(out_res)
+    centroids = (total_len / width) * np.arange(width)
+    lefts = np.clip(centroids.astype(int) - span_unit, 0, total_len)
+    rights = np.clip(centroids.astype(int) + span_unit, 0, total_len)
+    # Cumulative-sum trick: mean over [left, right) = (cumsum[right] - cumsum[left]) / (right - left).
+    csum = np.concatenate(([0.0], np.cumsum(s, dtype=float)))
+    widths = np.maximum(rights - lefts, 1)
+    return (csum[rights] - csum[lefts]) / widths
 
 
 def ppg_dual_double_frequency_template(width):
@@ -285,7 +288,7 @@ def ordinary_differential_equation(t, x_equations, rr, sfint, ti, ai, bi):
     return [dx1dt, dx2dt, dx3dt]
 
 
-def rr_process(flo, fhi, flostd, fhistd, lfhfratio, hrmean, hrstd, sfrr, n):
+def rr_process(flo, fhi, flostd, fhistd, lfhfratio, hrmean, hrstd, sfrr, n, seed=0):
     """
     Generate an RR interval time series with bimodal power spectrum.
 
@@ -303,12 +306,18 @@ def rr_process(flo, fhi, flostd, fhistd, lfhfratio, hrmean, hrstd, sfrr, n):
         Sampling frequency for RR intervals.
     n : int
         Length of the generated time series.
+    seed : int or None, optional
+        Seed for the random phase generator (default ``0``).  Pass ``None`` to
+        draw fresh randomness from the global numpy state.  A fixed default
+        makes ``ecg_dynamic_template`` deterministic, so the DTW reference
+        template is reproducible across runs.
 
     Returns
     -------
     numpy.ndarray
         Generated RR interval time series.
     """
+    rng = np.random.default_rng(seed) if seed is not None else np.random
     w1, w2 = 2 * np.pi * flo, 2 * np.pi * fhi
     c1, c2 = 2 * np.pi * flostd, 2 * np.pi * fhistd
     sig2, sig1 = 1, lfhfratio
@@ -322,14 +331,12 @@ def rr_process(flo, fhi, flostd, fhistd, lfhfratio, hrmean, hrstd, sfrr, n):
     Hw = Hw1 + Hw2
 
     Sw = (sfrr / 2) * np.sqrt(Hw)
-    ph = np.concatenate(
-        [
-            [0],
-            2 * np.pi * np.random.rand(int(n / 2) - 1),
-            [0],
-            -np.flip(2 * np.pi * np.random.rand(int(n / 2) - 1)),
-        ]
-    )
+    # Use a single random draw, then reuse it in the conjugate half so the
+    # spectrum is Hermitian-symmetric (real ifft) — the original code drew
+    # two independent random vectors which broke symmetry.
+    half = 2 * np.pi * rng.uniform(size=int(n / 2) - 1) if hasattr(rng, "uniform") \
+        else 2 * np.pi * rng.rand(int(n / 2) - 1)
+    ph = np.concatenate([[0], half, [0], -np.flip(half)])
 
     SwC = Sw * np.exp(1j * ph)
     x = (1 / n) * np.real(np.fft.ifft(SwC))
