@@ -1,10 +1,10 @@
 import dash
-import dash_table
+from dash import dash_table
 import numpy as np
 from dash.dependencies import Input, Output, State, MATCH, ALL
-import dash_core_components as dcc
+from dash import dcc
 import dash_bootstrap_components as dbc
-import dash_html_components as html
+from dash import html
 from plotly import graph_objects as go
 import pandas as pd
 from vital_sqi.app.util.parsing import parse_rule_list, generate_rule, generate_rule_set

@@ -1,7 +1,7 @@
 import pandas as pd
-import dash_table
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dash_table
+from dash import dcc
+from dash import html
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate  # Correctly import PreventUpdate
 from vital_sqi.app.app import app

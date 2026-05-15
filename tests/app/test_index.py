@@ -1,96 +1,189 @@
+"""
+Unit tests for vital_sqi.app.util.parsing — no browser required.
+
+Tests parse_data, generate_rule, generate_rule_set, parse_rule_list,
+and generate_boundaries purely in Python.
+"""
+import base64
+import io
+import json
 import pytest
+import pandas as pd
 from dash import html
-from dash.testing.application_runners import import_app
-from dash.testing.browser import Browser
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.action_chains import ActionChains
-import os
+
+from vital_sqi.app.util.parsing import (
+    parse_data,
+    generate_rule,
+    generate_rule_set,
+    parse_rule_list,
+    generate_boundaries,
+)
+from vital_sqi.rule.rule_class import Rule
+from vital_sqi.rule.ruleset_class import RuleSet
 
 
-@pytest.fixture
-def app_runner():
-    """Fixture to import the Dash app."""
-    app = import_app("vital_sqi.app.index")
-    return app
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _encode(content_bytes, mime="text/csv"):
+    encoded = base64.b64encode(content_bytes).decode()
+    return f"data:{mime};base64,{encoded}"
 
 
-def test_app_layout(dash_duo, app_runner):
-    """Test if the Dash app layout is rendered correctly."""
-    dash_duo.start_server(app_runner)
-
-    # Wait for the sidebar to render
-    dash_duo.wait_for_element(".display-4", timeout=10)
-
-    # Check if the sidebar is rendered
-    sidebar = dash_duo.find_element(".display-4")
-    assert sidebar.text == "Menu"
-
-    # Check if navigation links exist
-    nav_links = dash_duo.find_elements("a")
-    assert any(link.text == "Home" for link in nav_links)
-    assert any(link.text == "Dashboard 1" for link in nav_links)
+def _csv_content(df):
+    buf = io.StringIO()
+    df.to_csv(buf, index=False)
+    return _encode(buf.getvalue().encode())
 
 
-# def test_display_page_callback(dash_duo, app_runner):
-#     """Test page navigation callback."""
-#     dash_duo.start_server(app_runner)
-
-#     # Wait for the Dashboard 1 link
-#     dashboard_1_link = dash_duo.wait_for_element("#dashboard_1_link", timeout=20)
-
-#     # Enable the link if disabled (simulate app state update)
-#     if "disabled" in dashboard_1_link.get_attribute("class"):
-#         dash_duo.driver.execute_script(
-#             "arguments[0].classList.remove('disabled');", dashboard_1_link
-#         )
-
-#     # Force URL update as a fallback
-#     dash_duo.driver.execute_script(
-#         "window.history.pushState({}, '', '/views/dashboard1');"
-#     )
-#     dash_duo.driver.execute_script(
-#         "window.dispatchEvent(new Event('popstate'));"
-#     )
-
-#     # Alternatively, use ActionChains for clicking
-#     ActionChains(dash_duo.driver).move_to_element(dashboard_1_link).click().perform()
-
-#     # Wait for content update and validate
-#     dash_duo.wait_for_text_to_equal("#page-content", "Dashboard 1 Content", timeout=30)
-#     content_text = dash_duo.find_element("#page-content").text
-#     assert "Dashboard 1 Content" in content_text, f"Unexpected content: {content_text}"
+def _json_content(obj):
+    return _encode(json.dumps(obj).encode(), mime="application/json")
 
 
-# def test_update_output_callback(dash_duo, app_runner):
-#     """Test the upload-data callback for handling uploads."""
-#     dash_duo.start_server(app_runner)
+# ---------------------------------------------------------------------------
+# parse_data
+# ---------------------------------------------------------------------------
 
-#     # Wait for the upload component to appear
-#     upload_component = dash_duo.wait_for_element("#upload-data", timeout=30)
+class TestParseData:
+    def test_csv_returns_dict(self):
+        df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+        result = parse_data(_csv_content(df), "signal.csv")
+        assert isinstance(result, dict)
+        assert "a" in result
 
-#     # Simulate file upload
-#     file_path = os.path.abspath("tests/test_data/ecg_test1.csv")  # Replace with actual file path
-#     input_element = dash_duo.driver.find_element(By.CSS_SELECTOR, "#upload-data input[type='file']")
-#     input_element.send_keys(file_path)
+    def test_json_returns_dict(self):
+        obj = {"rule": [{"op": ">", "value": 0.5, "label": "accept"}]}
+        result = parse_data(_json_content(obj), "rules.json")
+        assert isinstance(result, dict)
+        assert "rule" in result
 
-#     # Validate the callback response
-#     dataframe_store = dash_duo.wait_for_element("#dataframe", timeout=30)
-#     assert dataframe_store.get_attribute("data") is not None
+    def test_txt_returns_dict(self):
+        txt = "col1 col2\n1 2\n3 4\n"
+        content = _encode(txt.encode(), mime="text/plain")
+        result = parse_data(content, "data.txt")
+        assert isinstance(result, dict)
+
+    def test_unsupported_extension_returns_error_div(self):
+        content = _encode(b"binary data", mime="application/octet-stream")
+        result = parse_data(content, "file.xyz")
+        assert isinstance(result, html.Div)
+
+    def test_malformed_content_returns_error_div(self):
+        result = parse_data("not_valid_base64_content", "file.csv")
+        assert isinstance(result, html.Div)
 
 
-# def test_upload_rule_callback(dash_duo, app_runner):
-#     """Test the upload-rule callback for handling rule uploads."""
-#     dash_duo.start_server(app_runner)
+# ---------------------------------------------------------------------------
+# generate_rule
+# ---------------------------------------------------------------------------
 
-#     # Wait for the upload-rule component
-#     upload_component = dash_duo.wait_for_element("#upload-rule", timeout=30)
+class TestGenerateRule:
+    _rule_def = [
+        {"op": "<=", "value": 0.5, "label": "reject"},
+        {"op": ">",  "value": 0.5, "label": "accept"},
+    ]
 
-#     # Simulate rule upload
-#     file_path = os.path.abspath("tests/test_data/rule_dict_test.json")  # Replace with actual file path
-#     input_element = dash_duo.driver.find_element(By.CSS_SELECTOR, "#upload-rule input[type='file']")
-#     input_element.send_keys(file_path)
+    def test_returns_rule_object(self):
+        rule = generate_rule("kurtosis_sqi", self._rule_def)
+        assert isinstance(rule, Rule)
 
-#     # Verify the rule data is updated
-#     rule_store = dash_duo.wait_for_element("#rule-set-store", timeout=30)
-#     assert rule_store.get_attribute("data") is not None
-#     assert dash_duo.get_logs() == [], "Errors found in browser console"
+    def test_rule_name_preserved(self):
+        rule = generate_rule("kurtosis_sqi", self._rule_def)
+        assert rule.name == "kurtosis_sqi"
+
+    def test_rule_has_boundaries(self):
+        rule = generate_rule("kurtosis_sqi", self._rule_def)
+        assert rule.rule is not None
+        assert "boundaries" in rule.rule
+
+    def test_invalid_def_returns_none(self):
+        result = generate_rule("bad_sqi", None)
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# generate_rule_set
+# ---------------------------------------------------------------------------
+
+class TestGenerateRuleSet:
+    _rule_set_dict = [
+        {
+            "name": "kurtosis_sqi",
+            "order": 1,
+            "def": [
+                {"op": "<=", "value": 0.5, "label": "reject"},
+                {"op": ">",  "value": 0.5, "label": "accept"},
+            ],
+        },
+        {
+            "name": "skewness_sqi",
+            "order": 2,
+            "def": [
+                {"op": "<=", "value": 2.0, "label": "accept"},
+                {"op": ">",  "value": 2.0, "label": "reject"},
+            ],
+        },
+    ]
+
+    def test_returns_ruleset_object(self):
+        rs = generate_rule_set(self._rule_set_dict)
+        assert isinstance(rs, RuleSet)
+
+    def test_ruleset_has_correct_number_of_rules(self):
+        rs = generate_rule_set(self._rule_set_dict)
+        assert len(rs.rules) == 2
+
+    def test_empty_dict_returns_empty_ruleset(self):
+        rs = generate_rule_set([])
+        assert isinstance(rs, RuleSet)
+        assert len(rs.rules) == 0
+
+    def test_invalid_input_returns_none(self):
+        result = generate_rule_set(None)
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# parse_rule_list
+# ---------------------------------------------------------------------------
+
+class TestParseRuleList:
+    def test_returns_list_of_dicts(self):
+        rule_def = [
+            {"op": "<=", "value": 0.5, "label": "reject", "extra": "ignored"},
+            {"op": ">",  "value": 0.5, "label": "accept", "extra": "ignored"},
+        ]
+        result = parse_rule_list(rule_def)
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert set(result[0].keys()) == {"op", "value", "label"}
+
+    def test_empty_list_returns_empty(self):
+        assert parse_rule_list([]) == []
+
+    def test_malformed_input_returns_empty(self):
+        result = parse_rule_list("not a list")
+        assert result == []
+
+
+# ---------------------------------------------------------------------------
+# generate_boundaries
+# ---------------------------------------------------------------------------
+
+class TestGenerateBoundaries:
+    def test_single_boundary(self):
+        result = generate_boundaries([5.0])
+        assert len(result) == 2
+        assert "[-inf" in result[0]
+        assert "inf]" in result[-1]
+
+    def test_multiple_boundaries(self):
+        result = generate_boundaries([1.0, 3.0, 7.0])
+        assert len(result) == 4  # n+1 intervals for n boundaries
+        assert result[0] == "[-inf, 1.0]"
+        assert result[-1] == "[7.0, inf]"
+
+    def test_empty_boundaries_returns_empty(self):
+        result = generate_boundaries([])
+        assert result == []

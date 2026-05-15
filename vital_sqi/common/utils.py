@@ -685,7 +685,8 @@ def check_signal_format(s):
             s = s.drop(columns=["timestamps"])
         s.insert(0, "timestamps", pd.to_datetime(pd.Series(range(len(s))), unit="s"))
 
-    if not np.issubdtype(s.iloc[:, 1].dtype, np.number):
+    numeric_cols = s.select_dtypes(include=[np.number]).columns
+    if len(numeric_cols) == 0:
         raise TypeError("The signal column must be numeric.")
 
     return s

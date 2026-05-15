@@ -8,6 +8,9 @@ from vital_sqi.sqi.standard_sqi import (
     signal_to_noise_sqi,
     zero_crossings_rate_sqi,
     mean_crossing_rate_sqi,
+    clipping_sqi,
+    baseline_wander_sqi,
+    spectral_snr_sqi,
 )
 
 
@@ -129,3 +132,85 @@ class TestMeanCrossingRateSqi:
     def test_mean_crossing_rate_sqi_invalid_inputs(self):
         with pytest.raises(TypeError):
             mean_crossing_rate_sqi("invalid")
+
+
+# ---------------------------------------------------------------------------
+# clipping_sqi
+# ---------------------------------------------------------------------------
+
+class TestClippingSqi:
+    def test_clean_signal_near_zero(self):
+        s = np.sin(np.linspace(0, 2 * np.pi, 500))
+        assert clipping_sqi(s) < 0.05
+
+    def test_fully_clipped_signal(self):
+        s = np.ones(100)
+        assert clipping_sqi(s) == 0.0  # constant → range==0
+
+    def test_hard_clipped_signal(self):
+        s = np.linspace(-1, 1, 200)
+        s[:20] = -1.0
+        s[-20:] = 1.0
+        assert clipping_sqi(s) > 0.1
+
+    def test_empty_returns_nan(self):
+        assert np.isnan(clipping_sqi([]))
+
+    def test_return_type_is_float(self):
+        assert isinstance(clipping_sqi(np.random.randn(100)), float)
+
+
+# ---------------------------------------------------------------------------
+# baseline_wander_sqi
+# ---------------------------------------------------------------------------
+
+class TestBaselineWanderSqi:
+    def test_clean_signal_low_wander(self):
+        fs = 100
+        t = np.linspace(0, 10, fs * 10)
+        s = np.sin(2 * np.pi * 1.0 * t)   # 1 Hz — well above LF threshold
+        result = baseline_wander_sqi(s, sampling_rate=fs)
+        assert 0.0 <= result <= 1.0
+
+    def test_low_freq_dominated_signal_high_wander(self):
+        fs = 100
+        t = np.linspace(0, 10, fs * 10)
+        s = np.sin(2 * np.pi * 0.1 * t)   # 0.1 Hz — below 0.5 Hz cutoff
+        result = baseline_wander_sqi(s, sampling_rate=fs)
+        assert result > 0.5
+
+    def test_short_signal_returns_nan(self):
+        assert np.isnan(baseline_wander_sqi(np.array([1.0, 2.0]), sampling_rate=100))
+
+    def test_zero_signal_returns_nan(self):
+        assert np.isnan(baseline_wander_sqi(np.zeros(500), sampling_rate=100))
+
+
+# ---------------------------------------------------------------------------
+# spectral_snr_sqi
+# ---------------------------------------------------------------------------
+
+class TestSpectralSnrSqi:
+    def test_tonal_signal_positive_snr(self):
+        fs = 100
+        t = np.linspace(0, 10, fs * 10)
+        s = np.sin(2 * np.pi * 1.2 * t)   # 1.2 Hz — inside PPG band 0.5–4 Hz
+        result = spectral_snr_sqi(s, sampling_rate=fs)
+        assert result > 0
+
+    def test_out_of_band_signal_negative_snr(self):
+        fs = 100
+        t = np.linspace(0, 10, fs * 10)
+        s = np.sin(2 * np.pi * 20.0 * t)  # 20 Hz — outside PPG band
+        result = spectral_snr_sqi(s, sampling_rate=fs)
+        assert result < 0
+
+    def test_short_signal_returns_nan(self):
+        assert np.isnan(spectral_snr_sqi(np.array([1.0, 2.0]), sampling_rate=100))
+
+    def test_custom_band(self):
+        fs = 256
+        t = np.linspace(0, 5, fs * 5)
+        s = np.sin(2 * np.pi * 10.0 * t)  # 10 Hz inside ECG band [0.5, 40]
+        result = spectral_snr_sqi(s, sampling_rate=fs, signal_band=[0.5, 40.0])
+        assert isinstance(result, float)

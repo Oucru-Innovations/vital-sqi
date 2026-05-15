@@ -2,7 +2,7 @@ import base64
 import pandas as pd
 import io
 import json
-import dash_html_components as html
+from dash import html
 import pathlib
 from vital_sqi.rule.rule_class import Rule
 from vital_sqi.rule.ruleset_class import RuleSet

@@ -379,3 +379,71 @@ class TestHRVSQIs:
         invalid_signal = [0] * 1000
         features = get_all_features_hrva(invalid_signal, sample_rate=100)
         assert features == {}
+
+
+# ---------------------------------------------------------------------------
+# rr_irregularity_sqi
+# ---------------------------------------------------------------------------
+
+_NN = np.array([800, 810, 790, 820, 805, 795, 815, 800, 810, 790,
+                820, 805, 795, 815, 800, 810, 790, 820, 805, 795,
+                815, 800, 810, 790, 820, 805, 795, 815, 800, 810], dtype=float)
+
+
+class TestRrIrregularitySqi:
+    def test_regular_intervals_low_value(self):
+        from vital_sqi.sqi.hrv_sqi import rr_irregularity_sqi
+        result = rr_irregularity_sqi(_NN)
+        assert isinstance(result, (float, np.floating))
+        assert result >= 0
+
+    def test_highly_irregular_intervals(self):
+        from vital_sqi.sqi.hrv_sqi import rr_irregularity_sqi
+        rr = np.array([800, 400, 900, 350, 1000, 300], dtype=float)
+        result = rr_irregularity_sqi(rr)
+        assert result > 0
+
+    def test_short_input_returns_nan(self):
+        from vital_sqi.sqi.hrv_sqi import rr_irregularity_sqi
+        assert np.isnan(rr_irregularity_sqi(np.array([800.0])))
+
+    def test_empty_returns_nan(self):
+        from vital_sqi.sqi.hrv_sqi import rr_irregularity_sqi
+        assert np.isnan(rr_irregularity_sqi(np.array([])))
+
+
+class TestSampleEntropySqi:
+    def test_valid_input_returns_float(self):
+        from vital_sqi.sqi.hrv_sqi import sample_entropy_sqi
+        result = sample_entropy_sqi(_NN)
+        assert isinstance(result, (float, np.floating))
+
+    def test_short_input_returns_nan(self):
+        from vital_sqi.sqi.hrv_sqi import sample_entropy_sqi
+        assert np.isnan(sample_entropy_sqi(np.array([800.0, 810.0])))
+
+    def test_empty_returns_nan(self):
+        from vital_sqi.sqi.hrv_sqi import sample_entropy_sqi
+        assert np.isnan(sample_entropy_sqi(np.array([])))
+
+
+class TestDfaSqi:
+    def test_valid_input_returns_float(self):
+        from vital_sqi.sqi.hrv_sqi import dfa_sqi
+        result = dfa_sqi(_NN)
+        assert isinstance(result, (float, np.floating))
+
+    def test_too_short_returns_nan(self):
+        from vital_sqi.sqi.hrv_sqi import dfa_sqi
+        assert np.isnan(dfa_sqi(np.array([800.0, 810.0, 820.0])))
+
+
+class TestHurstSqi:
+    def test_valid_input_returns_float(self):
+        from vital_sqi.sqi.hrv_sqi import hurst_sqi
+        result = hurst_sqi(_NN)
+        assert isinstance(result, (float, np.floating))
+
+    def test_short_input_returns_nan(self):
+        from vital_sqi.sqi.hrv_sqi import hurst_sqi
+        assert np.isnan(hurst_sqi(np.array([800.0, 810.0])))

@@ -123,7 +123,6 @@ def split_segment(
     if s is None or len(s) == 0:
         raise ValueError("Input signal is empty or None. Cannot perform segmentation.")
 
-    check_signal_format(s)
     sampling_rate = sampling_rate or 100  # Default sampling rate if None
     overlapping = overlapping or 0  # Default to no overlap if None
 
@@ -132,10 +131,12 @@ def split_segment(
     assert isinstance(duration, (int, float)), "Expected duration to be numeric."
     assert isinstance(overlapping, (int, float)), "Expected overlapping to be numeric."
     assert (
-        isinstance(peak_detector, int) and 0 <= peak_detector <= 7
+        isinstance(peak_detector, int) and 0 <= peak_detector <= 9
     ), "Invalid peak_detector."
     assert wave_type in ["PPG", "ECG"], "Expected wave_type to be 'PPG' or 'ECG'."
 
+    # Validate overlapping before touching the DataFrame so the caller gets a
+    # clean ValueError rather than a confusing TypeError from check_signal_format.
     if split_type == 0:
         chunk_size = int(duration * sampling_rate)
         chunk_step = chunk_size - int(overlapping * sampling_rate)
@@ -144,10 +145,12 @@ def split_segment(
                 f"overlapping ({overlapping}s) must be less than duration ({duration}s). "
                 f"Got chunk_step={chunk_step}."
             )
+        check_signal_format(s)
         chunk_indices = [
             [i, min(i + chunk_size, len(s))] for i in range(0, len(s), chunk_step)
         ]
     else:
+        check_signal_format(s)
         numeric_columns = s.select_dtypes(include=["float", "int"]).columns
         if numeric_columns.empty:
             raise ValueError("No column with numeric type found in the DataFrame.")

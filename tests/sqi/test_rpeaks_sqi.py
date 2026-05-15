@@ -185,3 +185,45 @@ class TestRPeakSQI:
                     wave_type="PPG",
                 )
             )
+
+
+# ---------------------------------------------------------------------------
+# amplitude_consistency_sqi
+# ---------------------------------------------------------------------------
+
+class TestAmplitudeConsistencySqi:
+    def test_periodic_signal_low_cv(self):
+        from vital_sqi.sqi.rpeaks_sqi import amplitude_consistency_sqi
+        fs = 100
+        t = np.linspace(0, 10, fs * 10)
+        s = np.sin(2 * np.pi * 1.2 * t)
+        result = amplitude_consistency_sqi(s, sample_rate=fs, wave_type="PPG")
+        assert isinstance(result, (float, np.floating))
+
+    def test_empty_returns_nan(self):
+        from vital_sqi.sqi.rpeaks_sqi import amplitude_consistency_sqi
+        result = amplitude_consistency_sqi([], sample_rate=100, wave_type="PPG")
+        assert np.isnan(result)
+
+
+# ---------------------------------------------------------------------------
+# remove_ectopic_beats
+# ---------------------------------------------------------------------------
+
+class TestRemoveEctopicBeats:
+    def test_valid_rr_intervals(self):
+        from vital_sqi.sqi.rpeaks_sqi import remove_ectopic_beats
+        rr = np.array([800, 810, 820, 400, 800, 810, 820, 830,
+                       800, 810, 820, 800, 810, 820, 800], dtype=float)
+        result = remove_ectopic_beats(rr, method="adaptive")
+        assert isinstance(result, np.ndarray)
+
+    def test_short_input_warns(self):
+        from vital_sqi.sqi.rpeaks_sqi import remove_ectopic_beats
+        with pytest.warns(UserWarning, match="Not enough"):
+            remove_ectopic_beats(np.array([800.0]), method="adaptive")
+
+    def test_invalid_method_warns(self):
+        from vital_sqi.sqi.rpeaks_sqi import remove_ectopic_beats
+        with pytest.warns(UserWarning, match="Invalid method"):
+            remove_ectopic_beats(np.array([800.0] * 10), method="unknown")
