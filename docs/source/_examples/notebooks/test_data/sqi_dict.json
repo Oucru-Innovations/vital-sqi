@@ -172,7 +172,7 @@
     }
   },
   "nn_mean": {
-    "sqi": "nn_mean_sqi",
+    "sqi": "mean_nn_sqi",
     "args": {
     }
   },
