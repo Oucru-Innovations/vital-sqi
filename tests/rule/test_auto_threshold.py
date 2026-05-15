@@ -144,6 +144,39 @@ class TestTunedBands:
 # ---------------------------------------------------------------------------
 
 
+class TestBandDataclass:
+    def test_width_property(self):
+        band = Band(
+            column="k", lower=1.0, upper=5.0,
+            quantile_lo=0.05, quantile_hi=0.95,
+        )
+        assert band.width == 4.0
+
+
+class TestTunedBandsTighterTrimSkips:
+    def test_column_that_passes_p5p95_but_flattens_at_tight_trim(self):
+        # Second degenerate-band guard in tuned_bands(): pre-filter passes
+        # (p5/p95 span >= DEGENERATE_BAND_HALF_WIDTH) but the tighter
+        # per-rule quantile window collapses.
+        #
+        # Important: for the usual joint-tune with several rules,
+        # per_rule_quantile() gives lower_pct < 0.05, so the tight window
+        # is *wider* than [p5, p95] (lo_tight <= p5 and hi_tight >= p95).
+        # The "tight trim flattens" case therefore needs few survivors so
+        # lower_pct *exceeds* 0.05 — here a single column (n_rules=1) at
+        # target 0.85 ⇒ lower_pct = 0.075, upper_pct = 0.925.
+        #
+        # Recipe: 6 lows at 0, 88 mids at 0.5, 6 highs at 1.0 (n=100).
+        # p5 sits in the left tail and p95 in the right tail (wide band).
+        # At 7.5 % / 92.5 % quantiles both fall in the flat 0.5 bulk →
+        # hi - lo == 0 → column skipped.
+        col = np.concatenate([np.full(6, 0.0), np.full(88, 0.5), np.full(6, 1.0)])
+        assert np.quantile(col, 0.95) - np.quantile(col, 0.05) >= 0.1
+
+        bands = tuned_bands({"sqi_0": col}, target_accept_rate=0.85)
+        assert bands == []
+
+
 class TestStrictestColumns:
     def test_returns_empty_when_few_rules(self):
         # Need at least 3 to talk about an outlier.
