@@ -53,7 +53,6 @@ jobs:
           github-token: ${{ secrets.COVERALLS_REPO_TOKEN }}
           coveralls-endpoint: https://coveralls.io
           path-to-lcov: coverage.xml
-          # path-to-lcov: ./tests 
       - name: Debug coverage paths
         run: |
           cat coverage.xml | grep filename

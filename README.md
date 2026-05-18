@@ -14,6 +14,7 @@
 ![GitHub License](https://img.shields.io/github/license/Oucru-Innovations/vital-sqi)
 ![Python Versions](https://img.shields.io/badge/python-3.7%2B-blue)
 [![Documentation Status](https://readthedocs.org/projects/vital-sqi/badge/?version=latest)](https://vital-sqi.readthedocs.io/en/latest/?badge=latest)
+[![Live on Render](https://img.shields.io/badge/Live%20on-Render-0464d5?logo=render&logoColor=white)](https://vital-sqi.onrender.com/)
 <!-- ![PyPI Downloads](https://img.shields.io/pypi/dm/vitalsqi)
 [![PyPI version](https://badge.fury.io/py/vitalsqi.svg)](https://badge.fury.io/py/vitalsqi)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Oucru-Innovations/vital-sqi/blob/main/docs/source/notebooks/synthesize_data.ipynb) -->
