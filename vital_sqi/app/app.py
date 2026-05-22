@@ -39,6 +39,15 @@ except ImportError:  # pragma: no cover - exercised when diskcache is absent
         "Run `pip install diskcache` to enable long-running computations "
         "in the Compute view."
     )
+except Exception:  # pragma: no cover - e.g. cache dir not writable on a host
+    # Any non-ImportError failure (unwritable cache dir, locked Cache, …)
+    # should degrade to foreground callbacks rather than crash app import.
+    background_callback_manager = None
+    logger.warning(
+        "Background-callback manager init failed; running callbacks in the "
+        "foreground. Compute progress updates will be disabled.",
+        exc_info=True,
+    )
 
 # ---------------------------------------------------------------------------
 # Dash app

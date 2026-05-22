@@ -715,19 +715,36 @@ _background = background_callback_manager is not None
     prevent_initial_call=True,
     manager=background_callback_manager,
 )
-def _run_compute(
-    set_progress,
-    n_clicks,
-    staged_upload,
-    wave_type,
-    sampling_rate,
-    duration,
-    overlap,
-    sqi_dict_source,
-    sqi_dict_payload,
-    n_jobs,
-):
-    """Background callback: load → segment → extract_sqi → preview + store."""
+def _run_compute(*args):
+    """Background callback: load → segment → extract_sqi → preview + store.
+
+    Dash injects a leading ``set_progress`` argument only when the callback
+    runs in background mode.  Render installs the package without
+    ``diskcache``, so there the callback runs in the foreground and that
+    argument is absent.  Accept ``*args`` and split on the expected count
+    so the same function works in both modes.
+    """
+    n_state = 8  # number of State() entries below
+    if len(args) == n_state + 2:          # background: set_progress + input + states
+        set_progress, n_clicks, *states = args
+    elif len(args) == n_state + 1:        # foreground: input + states only
+        set_progress, (n_clicks, *states) = (None, args)
+    else:  # pragma: no cover - signature/decorator drift
+        raise RuntimeError(
+            f"_run_compute received {len(args)} args; expected "
+            f"{n_state + 1} or {n_state + 2}."
+        )
+    (
+        staged_upload,
+        wave_type,
+        sampling_rate,
+        duration,
+        overlap,
+        sqi_dict_source,
+        sqi_dict_payload,
+        n_jobs,
+    ) = states
+
     # Dash's "running" tuples reset disabled state, but the foreground branch
     # (no background manager) needs a guard.
     if not n_clicks or not staged_upload:
